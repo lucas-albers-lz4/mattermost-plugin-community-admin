@@ -1,0 +1,24 @@
+bin/
+dist/
+webapp/src/manifest.ts
+server/manifest.go
+
+# E2E
+e2e/.env
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+
+# Webapp build artifacts
+webapp/node_modules/
+webapp/dist/
+
+# Mac
+.DS_Store
+
+# Jetbrains
+.idea/
+
+# VS Code
+.vscode

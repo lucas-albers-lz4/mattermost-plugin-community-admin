@@ -1,0 +1,33 @@
+{
+    "id": "com.lalbers.community-admin",
+    "name": "Community Admin",
+    "description": "Delegated organizer user management for invite-only Mattermost communities.",
+    "homepage_url": "https://github.com/lalbers/mattermost-plugin-community-admin",
+    "support_url": "https://github.com/lalbers/mattermost-plugin-community-admin/issues",
+    "icon_path": "assets/icon.svg",
+    "min_server_version": "6.2.1",
+    "server": {
+        "executables": {
+            "linux-amd64": "server/dist/plugin-linux-amd64",
+            "linux-arm64": "server/dist/plugin-linux-arm64",
+            "darwin-amd64": "server/dist/plugin-darwin-amd64",
+            "darwin-arm64": "server/dist/plugin-darwin-arm64",
+            "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+        }
+    },
+    "webapp": {
+        "bundle_path": "webapp/dist/main.js"
+    },
+    "settings_schema": {
+        "header": "Configure delegated organizers who can create and manage users within assigned teams and channels.",
+        "footer": "Only system administrators can edit this configuration. User IDs are authoritative; usernames are display-only.",
+        "settings": [
+            {
+                "key": "ScopeConfig",
+                "display_name": "Organizer scope configuration",
+                "type": "custom",
+                "help_text": "JSON allowlist mapping organizer user IDs to teams, channels, and permissions."
+            }
+        ]
+    }
+}

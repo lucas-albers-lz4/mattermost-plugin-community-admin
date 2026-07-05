@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Community Admin">
+  <rect width="256" height="256" rx="48" fill="#1C58D9"/>
+  <circle cx="128" cy="96" r="34" fill="#FFFFFF"/>
+  <path d="M48 196c8-44 40-68 80-68s72 24 80 68" fill="#FFFFFF"/>
+  <circle cx="188" cy="108" r="22" fill="#FFFFFF" opacity="0.9"/>
+  <path d="M156 188c6-24 24-36 44-36s38 12 44 36" fill="#FFFFFF" opacity="0.9"/>
+</svg>
