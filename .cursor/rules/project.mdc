@@ -1,0 +1,41 @@
+---
+description: Community Admin Mattermost plugin — build, test, and deploy context
+alwaysApply: true
+---
+
+# mattermost-plugin-community-admin
+
+Plugin ID: `com.lalbers.community-admin` — delegated organizer user management (Go server + React webapp).
+
+Repo: https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin  
+Deployed via sibling **mattermost-oci-deploy** (`install-community-admin-plugin.sh`).
+
+## Build and quality
+
+```sh
+make install-dev-tools && make setup-hooks   # once
+go test ./...
+make dist                                    # → dist/com.lalbers.community-admin-*.tar.gz
+```
+
+Pre-commit runs: gitleaks (staged), go vet, golangci-lint (incl. gosec), go test, govulncheck (optional).
+
+## E2E / manual test
+
+- `e2e/` — Playwright + `scripts/api-smoke.sh`; secrets in `e2e/.env` only (gitignored)
+- Requires workstation IP in deploy repo `TEST_ALLOWED_CIDR`
+- Test Mattermost started via deploy repo `manage-test-instance.sh`
+- After plugin install on test: use `mmctl plugin add` (not raw copy to `/mattermost/plugins/` — wiped on restart)
+- Webapp bundle path quirk: may need copy to `/mattermost/client/com.lalbers.community-admin/` — see `docs/operations.md`
+
+## Code layout
+
+- `server/` — API, authz, mmctl password reset (`EnableLocalMode` required)
+- `webapp/src/` — RHS panel, ScopeEditor; `window.__communityAdminOpenPanel` for e2e only
+- Docs: `docs/`; do not duplicate long guides in README
+
+## Agent defaults
+
+- Module/import path: `github.com/lalbers/mattermost-plugin-community-admin`
+- Minimal diffs; do not commit `e2e/.env` or `dist/`
+- Do not commit or push unless explicitly asked

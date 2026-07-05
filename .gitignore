@@ -14,6 +14,10 @@ e2e/blob-report/
 webapp/node_modules/
 webapp/dist/
 
+# Cursor IDE (commit .cursor/rules/; ignore debug logs and local cache)
+.cursor/debug-*.log
+.cursor/**/*.log
+
 # Mac
 .DS_Store
 
