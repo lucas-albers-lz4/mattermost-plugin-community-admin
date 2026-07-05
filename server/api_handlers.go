@@ -7,11 +7,12 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+
 	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
 )
 
-func (p *Plugin) writeJSON(w http.ResponseWriter, status int, v interface{}) {
+func (p *Plugin) writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if v == nil {
@@ -59,7 +60,7 @@ func (p *Plugin) handleMe(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}
-	p.writeJSON(w, http.StatusOK, map[string]interface{}{
+	p.writeJSON(w, http.StatusOK, map[string]any{
 		"user_id":          ctx.ActorID,
 		"display_username": ctx.Organizer.DisplayUsername,
 		"teams":            ctx.Organizer.Teams,
@@ -104,7 +105,7 @@ func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := make([]map[string]interface{}, 0, len(users))
+	out := make([]map[string]any, 0, len(users))
 	for _, u := range users {
 		teamIDsForUser, _ := p.userService.TeamIDsForUser(u.Id)
 		if !checker.UserVisible(orgCtx, teamIDsForUser) {
@@ -112,7 +113,7 @@ func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, sanitizeUser(u))
 	}
-	p.writeJSON(w, http.StatusOK, map[string]interface{}{"users": out})
+	p.writeJSON(w, http.StatusOK, map[string]any{"users": out})
 }
 
 type createUserBody struct {
@@ -193,7 +194,7 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		ClientIP:       pluginContextIP(r),
 	})
 
-	p.writeJSON(w, http.StatusCreated, map[string]interface{}{
+	p.writeJSON(w, http.StatusCreated, map[string]any{
 		"user":        sanitizeUser(result.User),
 		"password":    result.Password,
 		"parent_text": result.ParentText,
@@ -281,7 +282,7 @@ func (p *Plugin) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		ClientIP: pluginContextIP(r),
 	})
 
-	p.writeJSON(w, http.StatusOK, map[string]interface{}{
+	p.writeJSON(w, http.StatusOK, map[string]any{
 		"username":    result.Username,
 		"password":    result.Password,
 		"parent_text": result.ParentText,
@@ -468,7 +469,7 @@ func (p *Plugin) handleAudit(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, http.StatusInternalServerError)
 		return
 	}
-	p.writeJSON(w, http.StatusOK, map[string]interface{}{"entries": entries})
+	p.writeJSON(w, http.StatusOK, map[string]any{"entries": entries})
 }
 
 func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
@@ -506,7 +507,7 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	p.writeJSON(w, http.StatusOK, map[string]interface{}{"results": results, "dry_run": dryRun})
+	p.writeJSON(w, http.StatusOK, map[string]any{"results": results, "dry_run": dryRun})
 }
 
 func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
@@ -528,7 +529,7 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := map[string]interface{}{}
+	out := map[string]any{}
 	if body.OrganizerUsername != "" {
 		u, err := p.client.User.GetByUsername(body.OrganizerUsername)
 		if err != nil {

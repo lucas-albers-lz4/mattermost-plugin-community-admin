@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Pre-commit checks: secrets scan, Go format/lint/security, unit tests.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+info() { printf '%b\n' "${GREEN}pre-commit:${NC} $*"; }
+fail() { printf '%b\n' "${RED}pre-commit FAILED:${NC} $*" >&2; exit 1; }
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    fail "missing required command: $1 — run: make install-dev-tools"
+  fi
+}
+
+# --- 1. Secret scan (staged files only) ---
+require_cmd gitleaks
+info "gitleaks protect --staged"
+gitleaks protect --staged --verbose --config "$ROOT/.gitleaks.toml" \
+  || fail "gitleaks found secrets in staged changes"
+
+STAGED_GO="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.go$' || true)"
+STAGED_GO_META="$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^go\.(mod|sum)$|\.golangci\.yml$)' || true)"
+
+if [ -z "$STAGED_GO" ] && [ -z "$STAGED_GO_META" ]; then
+  info "no staged Go changes — skipping Go checks"
+  info "done"
+  exit 0
+fi
+
+# --- 2. Go format, lint, security, tests ---
+require_cmd go
+require_cmd golangci-lint
+
+info "go vet"
+go vet ./... || fail "go vet"
+
+info "golangci-lint (format + lint + gosec)"
+golangci-lint run ./... || fail "golangci-lint"
+
+info "go test"
+go test ./... || fail "go test"
+
+if command -v govulncheck >/dev/null 2>&1; then
+  info "govulncheck"
+  govulncheck ./... || fail "govulncheck"
+else
+  info "govulncheck not installed — skipping (optional; install via make install-dev-tools)"
+fi
+
+info "done"

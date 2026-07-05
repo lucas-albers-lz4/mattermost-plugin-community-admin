@@ -1,0 +1,13 @@
+# Gitleaks configuration for mattermost-plugin-community-admin
+# https://github.com/gitleaks/gitleaks
+
+title = "community-admin gitleaks"
+
+[extend]
+useDefault = true
+
+# Mattermost starter-template README used this as a documentation example (not a real token).
+[[allowlists]]
+description = "Mattermost plugin starter template example MM_ADMIN_TOKEN"
+regexTarget = "match"
+regexes = ['''j44acwd8obn78cdcx7koid4jkr''']

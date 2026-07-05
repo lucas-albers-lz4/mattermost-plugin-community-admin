@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 	"github.com/pkg/errors"
+
+	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 )
 
 type configuration struct {

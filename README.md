@@ -102,6 +102,7 @@ Full reference: [docs/configuration.md](docs/configuration.md)
 go test ./...
 cd webapp && npm install && npm run build
 make dist
+make install-dev-tools && make setup-hooks   # optional: pre-commit hooks
 ```
 
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Changes: [CHANGELOG.md](CHANGELOG.md)

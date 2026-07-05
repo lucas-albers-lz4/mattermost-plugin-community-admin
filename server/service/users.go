@@ -23,12 +23,12 @@ func NewUserService(client *pluginapi.Client) *UserService {
 }
 
 type CreateUserRequest struct {
-	Username  string
-	FirstName string
-	LastName  string
-	Email     string
-	Password  string
-	TeamIDs   []string
+	Username   string
+	FirstName  string
+	LastName   string
+	Email      string
+	Password   string
+	TeamIDs    []string
 	ChannelIDs []string
 }
 
@@ -71,7 +71,9 @@ func (s *UserService) CreateUser(req CreateUserRequest, emailDomain, siteURL str
 		return nil, err
 	}
 
-	ApplyPushDefaults(s.client, user)
+	if err := ApplyPushDefaults(s.client, user); err != nil {
+		return nil, err
+	}
 
 	for _, teamID := range req.TeamIDs {
 		if _, err := s.client.Team.CreateMember(teamID, user.Id); err != nil {
@@ -129,7 +131,7 @@ func (s *UserService) ResetPassword(username, siteURL string) (*ResetPasswordRes
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", password)
+	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", password) //nolint:gosec // controlled local mmctl; see SECURITY.md
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("mmctl change-password: %w: %s", err, strings.TrimSpace(string(output)))

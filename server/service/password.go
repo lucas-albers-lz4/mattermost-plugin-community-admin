@@ -37,7 +37,7 @@ func GeneratePassword() (string, error) {
 		randomChar(symbolChars),
 	}
 	all := upperChars + lowerChars + digitChars + symbolChars
-	for i := 0; i < 12; i++ {
+	for range 12 {
 		required = append(required, randomChar(all))
 	}
 	mrand.Shuffle(len(required), func(i, j int) {

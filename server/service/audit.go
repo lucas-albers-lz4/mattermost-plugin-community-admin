@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	auditKeyPrefix   = "audit_"
-	auditIndexKey    = "audit_index"
-	maxAuditEntries  = 10000
-	auditRetention   = 90 * 24 * time.Hour
+	auditKeyPrefix  = "audit_"
+	auditIndexKey   = "audit_index"
+	maxAuditEntries = 10000
+	auditRetention  = 90 * 24 * time.Hour
 )
 
 // AuditEntry records an organizer action without secrets.

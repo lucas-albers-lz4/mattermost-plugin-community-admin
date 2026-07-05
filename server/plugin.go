@@ -5,11 +5,12 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/lalbers/mattermost-plugin-community-admin/server/command"
-	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+
+	"github.com/lalbers/mattermost-plugin-community-admin/server/command"
+	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
 )
 
 type Plugin struct {

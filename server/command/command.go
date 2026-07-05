@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
+
 	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
-	"github.com/mattermost/mattermost/server/public/model"
-	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 const commandTrigger = "community-admin"

@@ -29,6 +29,7 @@ linters:
       enable-all: true
       disable:
         - fieldalignment
+        - shadow
     revive:
       rules:
         - name: exported
@@ -40,6 +41,7 @@ linters:
   exclusions:
     paths:
       - webapp
+      - build
     rules:
       - path: server/configuration.go
         linters:

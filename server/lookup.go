@@ -1,11 +1,10 @@
 package main
 
 import (
-	"strings"
-
-	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+
+	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 )
 
 // pluginUserLookup adapts plugin API to authz.UserLookup.
@@ -39,8 +38,8 @@ func (l *pluginUserLookup) GetUserInfo(userID string) (*authz.UserInfo, error) {
 	}, nil
 }
 
-func sanitizeUser(u *model.User) map[string]interface{} {
-	return map[string]interface{}{
+func sanitizeUser(u *model.User) map[string]any {
+	return map[string]any{
 		"id":         u.Id,
 		"username":   u.Username,
 		"first_name": u.FirstName,
@@ -57,8 +56,4 @@ func actorUsername(client *pluginapi.Client, actorID string) string {
 		return ""
 	}
 	return user.Username
-}
-
-func isNotOrganizer(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "not an organizer")
 }

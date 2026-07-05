@@ -187,6 +187,19 @@ install-go-tools:
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0
 	$(GO) install gotest.tools/gotestsum@v1.13.0
 
+## Install dev tools for local pre-commit hooks
+.PHONY: install-dev-tools
+install-dev-tools: install-go-tools
+	@echo Installing dev tools for pre-commit hooks
+	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+	@command -v gitleaks >/dev/null 2>&1 || echo "Install gitleaks: brew install gitleaks (https://github.com/gitleaks/gitleaks)"
+
+## Install git pre-commit hook from .githooks/
+.PHONY: setup-hooks
+setup-hooks:
+	@chmod +x scripts/install-git-hooks.sh .githooks/pre-commit
+	@./scripts/install-git-hooks.sh
+
 ## Runs eslint and golangci-lint
 .PHONY: check-style
 check-style: manifest-check apply webapp/node_modules install-go-tools

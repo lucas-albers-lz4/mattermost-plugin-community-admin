@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 )
 
 const CurrentVersion = 1
@@ -46,8 +47,8 @@ type Permissions struct {
 }
 
 type RateLimits struct {
-	CreatesPerHour         int `json:"creates_per_hour"`
-	PasswordResetsPerHour  int `json:"password_resets_per_hour"`
+	CreatesPerHour        int `json:"creates_per_hour"`
+	PasswordResetsPerHour int `json:"password_resets_per_hour"`
 }
 
 // DefaultPermissions returns safe defaults for a new organizer entry.
@@ -136,10 +137,5 @@ func (o *Organizer) HasChannel(channelID, teamID string) bool {
 			return true
 		}
 	}
-	for _, tid := range o.AllChannelsInTeams {
-		if tid == teamID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(o.AllChannelsInTeams, teamID)
 }

@@ -63,7 +63,7 @@ func ParseBatchCSV(r io.Reader) ([]BatchRow, error) {
 			row.TeamName = strings.TrimSpace(rec[idx])
 		}
 		if idx, ok := col["channels"]; ok && idx < len(rec) && strings.TrimSpace(rec[idx]) != "" {
-			for _, ch := range strings.Split(rec[idx], ";") {
+			for ch := range strings.SplitSeq(rec[idx], ";") {
 				ch = strings.TrimSpace(ch)
 				if ch != "" {
 					row.Channels = append(row.Channels, ch)

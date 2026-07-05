@@ -3,19 +3,20 @@ package authz
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 )
 
 var (
-	ErrNotOrganizer     = errors.New("not an organizer")
-	ErrForbidden        = errors.New("forbidden")
-	ErrProtectedTarget  = errors.New("protected target")
-	ErrTeamOutOfScope   = errors.New("team out of scope")
+	ErrNotOrganizer      = errors.New("not an organizer")
+	ErrForbidden         = errors.New("forbidden")
+	ErrProtectedTarget   = errors.New("protected target")
+	ErrTeamOutOfScope    = errors.New("team out of scope")
 	ErrChannelOutOfScope = errors.New("channel out of scope")
-	ErrUserOutOfScope   = errors.New("user out of scope")
-	ErrPermissionDenied = errors.New("permission denied")
+	ErrUserOutOfScope    = errors.New("user out of scope")
+	ErrPermissionDenied  = errors.New("permission denied")
 )
 
 // Checker enforces organizer scope for all operations.
@@ -65,12 +66,7 @@ func isProtected(actorID string, target *UserInfo) bool {
 }
 
 func userInOrganizerTeams(org *config.Organizer, teamIDs []string) bool {
-	for _, tid := range teamIDs {
-		if org.HasTeam(tid) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(teamIDs, org.HasTeam)
 }
 
 func allTeamsSubset(org *config.Organizer, userTeamIDs []string) bool {

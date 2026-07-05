@@ -4,9 +4,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 )
 
 type mockLookup struct {
@@ -144,7 +145,7 @@ func TestAuditSysadmin(t *testing.T) {
 		},
 	}
 	checker := NewChecker(cfg, lookup)
-	ctx, err := checker.ResolveOrganizer("sysadmin")
+	_, err := checker.ResolveOrganizer("sysadmin")
 	require.ErrorIs(t, err, ErrNotOrganizer)
 
 	// sysadmin not in organizer list — use direct audit check via fake organizer context won't work.
@@ -154,7 +155,7 @@ func TestAuditSysadmin(t *testing.T) {
 		Teams:  []config.TeamRef{{ID: "team-soccer", Name: "u12-soccer"}},
 	})
 	checker = NewChecker(cfg, lookup)
-	ctx, err = checker.ResolveOrganizer("sysadmin")
+	ctx, err := checker.ResolveOrganizer("sysadmin")
 	require.NoError(t, err)
 	assert.NoError(t, checker.Authorize(ctx, OpViewAudit, Target{}))
 }
