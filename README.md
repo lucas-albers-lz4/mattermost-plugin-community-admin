@@ -18,6 +18,8 @@ Delegated user management for **invite-only Mattermost communities**. System adm
 
 ## Features
 
+![Community Members panel — scoped user list and actions](docs/images/community-admin/02-panel-list.png)
+
 - **Scoped organizers** — allowlist by user ID with per-team/channel permissions
 - **Create users** — username + password, optional team/channel assignment, credential handoff text
 - **Reset passwords** — server-generated passwords with copy-paste handoff banner

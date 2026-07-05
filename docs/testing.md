@@ -62,6 +62,26 @@ npm run test:headed      # visible browser
 
 The auth fixture opens the panel via channel header button when visible, otherwise via `window.__communityAdminOpenPanel` (test hook registered by the webapp).
 
+### Documentation screenshots
+
+Capture PNGs for the [user guide](user-guide.md) and deploy-repo parent docs:
+
+```sh
+cd e2e
+npm run screenshots              # headless
+npm run screenshots:headed       # visible browser for debugging
+```
+
+Outputs to `docs/images/community-admin/`. Credential passwords are redacted before capture. See [docs/images/community-admin/README.md](images/community-admin/README.md) for the file manifest.
+
+Sync a subset to the deploy repo:
+
+```sh
+/path/to/mattermost-oci-deploy/scripts/sync-community-admin-screenshots.sh
+```
+
+Screenshot specs are excluded from `npm test` (see `playwright.config.ts` `testIgnore`).
+
 ### CI note
 
 GitHub-hosted runners cannot reach the IP-restricted test host without a tunnel or self-hosted runner in the allowed CIDR.

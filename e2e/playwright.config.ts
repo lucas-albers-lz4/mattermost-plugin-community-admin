@@ -9,6 +9,7 @@ const testURL = process.env.TEST_URL || 'https://doomzilla.duckdns.org';
 
 export default defineConfig({
     testDir: './tests',
+    testIgnore: process.env.SCREENSHOTS ? [] : [/screenshots\.spec\.ts/],
     fullyParallel: false,
     forbidOnly: Boolean(process.env.CI),
     retries: process.env.CI ? 1 : 0,
