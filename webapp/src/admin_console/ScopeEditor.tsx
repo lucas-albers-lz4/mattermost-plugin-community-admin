@@ -153,7 +153,7 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                 style={{width: '100%', marginBottom: 8}}
             />
             <input
-                placeholder='teams (comma-separated URL names/slugs, required)'
+                placeholder='teams (comma-separated slugs or display names, required; e.g. friends-group)'
                 value={draftTeams}
                 onChange={(e) => setDraftTeams(e.target.value)}
                 style={{width: '100%', marginBottom: 8}}

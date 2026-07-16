@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost/server/public/model"
 
 	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
@@ -637,15 +640,18 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 
 	teams := []map[string]string{}
 	for _, name := range body.TeamNames {
-		t, err := p.client.Team.GetByName(name)
+		t, err := p.resolveTeamByNameOrDisplay(name)
 		if err != nil {
-			p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "team not found: " + name})
+			p.writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "team not found: " + name + " (use the team URL slug, e.g. friends-group, or the exact display name)",
+			})
 			return
 		}
-		teams = append(teams, map[string]string{"id": t.Id, "name": t.DisplayName})
-		if teams[len(teams)-1]["name"] == "" {
-			teams[len(teams)-1]["name"] = t.Name
+		label := t.DisplayName
+		if label == "" {
+			label = t.Name
 		}
+		teams = append(teams, map[string]string{"id": t.Id, "name": label})
 	}
 	out["teams"] = teams
 
@@ -676,6 +682,47 @@ func splitChannelSpec(spec string) []string {
 		}
 	}
 	return nil
+}
+
+// resolveTeamByNameOrDisplay finds a team by URL slug, a spaced display name
+// (e.g. "Friends Group" → friends-group), Search, or exact display-name match.
+func (p *Plugin) resolveTeamByNameOrDisplay(name string) (*model.Team, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("empty team name")
+	}
+	if t, err := p.client.Team.GetByName(name); err == nil && t != nil {
+		return t, nil
+	}
+	slug := strings.ToLower(strings.Join(strings.Fields(name), "-"))
+	if slug != "" && !strings.EqualFold(slug, name) {
+		if t, err := p.client.Team.GetByName(slug); err == nil && t != nil {
+			return t, nil
+		}
+	}
+	if found, err := p.client.Team.Search(name); err == nil {
+		for _, t := range found {
+			if t == nil {
+				continue
+			}
+			if strings.EqualFold(t.DisplayName, name) || strings.EqualFold(t.Name, name) {
+				return t, nil
+			}
+		}
+	}
+	all, err := p.client.Team.List()
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range all {
+		if t == nil {
+			continue
+		}
+		if strings.EqualFold(t.DisplayName, name) || strings.EqualFold(t.Name, name) {
+			return t, nil
+		}
+	}
+	return nil, fmt.Errorf("not found")
 }
 
 func pluginContextIP(r *http.Request) string {
