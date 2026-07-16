@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 
 import {MeResponse, UserSummary, pluginFetch} from '../api';
 
@@ -35,10 +35,26 @@ const CommunityPanel: React.FC<Props> = ({onClose}) => {
         load();
     }, []);
 
+    const channelsForTeam = useMemo(() => {
+        const all = me?.channels || [];
+        if (!form.team_id) {
+            return all;
+        }
+        return all.filter((c) => !c.team_id || c.team_id === form.team_id);
+    }, [me?.channels, form.team_id]);
+
     const createUser = async () => {
         setError('');
+        if (!form.username.trim()) {
+            setError('Username is required');
+            return;
+        }
+        if (!form.team_id) {
+            setError('Select a team so the new user can log in');
+            return;
+        }
         try {
-            const teamIds = form.team_id ? [form.team_id] : [];
+            const teamIds = [form.team_id];
             const channelIds = form.channel_id ? [form.channel_id] : [];
             const result = await pluginFetch<{user: UserSummary; password: string; parent_text: string}>('/users', {
                 method: 'POST',
@@ -87,6 +103,9 @@ const CommunityPanel: React.FC<Props> = ({onClose}) => {
         return null;
     }
 
+    const teams = me?.teams || [];
+    const hasTeams = teams.length > 0;
+
     return (
         <div data-testid='community-admin-panel' style={{padding: 16, maxWidth: 900, margin: '0 auto'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -110,19 +129,33 @@ const CommunityPanel: React.FC<Props> = ({onClose}) => {
             {showCreate && (
                 <div data-testid='community-admin-create-form' style={{border: '1px solid #ccc', padding: 12, marginBottom: 12}}>
                     <h3>Create user</h3>
+                    {!hasTeams && (
+                        <div data-testid='community-admin-no-teams' style={{color: 'crimson', marginBottom: 8}}>
+                            No teams in your organizer scope. Ask a system admin to add teams under System Console → Plugins → Community Admin, then save.
+                        </div>
+                    )}
                     <div style={{display: 'grid', gap: 8}}>
                         <input data-testid='community-admin-create-username' placeholder='username' value={form.username} onChange={(e) => setForm({...form, username: e.target.value})}/>
                         <input data-testid='community-admin-create-firstname' placeholder='first name' value={form.first_name} onChange={(e) => setForm({...form, first_name: e.target.value})}/>
                         <input data-testid='community-admin-create-lastname' placeholder='last name' value={form.last_name} onChange={(e) => setForm({...form, last_name: e.target.value})}/>
-                        <select data-testid='community-admin-create-team' value={form.team_id} onChange={(e) => setForm({...form, team_id: e.target.value})}>
-                            <option value=''>Select team (optional)</option>
-                            {(me?.teams || []).map((t: {id: string; name: string}) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        <select
+                            data-testid='community-admin-create-team'
+                            value={form.team_id}
+                            onChange={(e) => setForm({...form, team_id: e.target.value, channel_id: ''})}
+                        >
+                            <option value=''>Select team (required)</option>
+                            {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
-                        <select data-testid='community-admin-create-channel' value={form.channel_id} onChange={(e) => setForm({...form, channel_id: e.target.value})}>
-                            <option value=''>Select channel (optional)</option>
-                            {(me?.channels || []).map((c: {id: string; name: string}) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        <select
+                            data-testid='community-admin-create-channel'
+                            value={form.channel_id}
+                            onChange={(e) => setForm({...form, channel_id: e.target.value})}
+                            disabled={!form.team_id}
+                        >
+                            <option value=''>{form.team_id ? 'Select channel (optional)' : 'Select a team first'}</option>
+                            {channelsForTeam.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <button type='button' data-testid='community-admin-create-submit' onClick={createUser}>Create</button>
+                        <button type='button' data-testid='community-admin-create-submit' onClick={createUser} disabled={!hasTeams}>Create</button>
                     </div>
                 </div>
             )}

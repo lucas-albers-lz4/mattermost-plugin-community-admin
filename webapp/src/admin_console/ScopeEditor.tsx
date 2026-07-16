@@ -58,6 +58,15 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
 
     const addOrganizer = async () => {
         setMessage('');
+        const teamNames = draftTeams.split(',').map((s) => s.trim()).filter(Boolean);
+        if (!draftUsername.trim()) {
+            setMessage('Organizer username required');
+            return;
+        }
+        if (teamNames.length === 0) {
+            setMessage('At least one team name is required (otherwise Create User has an empty team dropdown)');
+            return;
+        }
         try {
             const resolved = await pluginFetch<{
                 organizer?: {user_id: string; username: string};
@@ -66,14 +75,18 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
             }>('/resolve-scope', {
                 method: 'POST',
                 body: JSON.stringify({
-                    organizer_username: draftUsername,
-                    team_names: draftTeams.split(',').map((s) => s.trim()).filter(Boolean),
+                    organizer_username: draftUsername.trim(),
+                    team_names: teamNames,
                     channel_specs: draftChannels.split(',').map((s) => s.trim()).filter(Boolean),
                 }),
             });
 
             if (!resolved.organizer) {
                 setMessage('Organizer username required');
+                return;
+            }
+            if (!(resolved.teams || []).length) {
+                setMessage('No teams resolved — check team names (use the team URL slug, not display name)');
                 return;
             }
 
@@ -84,7 +97,10 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                 display_username: resolved.organizer.username,
                 teams: resolved.teams || [],
                 channels: resolved.channels || [],
-                all_channels_in_teams: (resolved.teams || []).map((t) => t.id),
+                // When no explicit channels are listed, allow all public channels in scoped teams.
+                all_channels_in_teams: (resolved.channels || []).length === 0
+                    ? (resolved.teams || []).map((t) => t.id)
+                    : [],
                 permissions: {
                     create_user: true,
                     edit_profile: true,
@@ -126,8 +142,8 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
             </label>
             <h4>Add organizer</h4>
             <input placeholder='organizer username' value={draftUsername} onChange={(e) => setDraftUsername(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
-            <input placeholder='teams (comma-separated names)' value={draftTeams} onChange={(e) => setDraftTeams(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
-            <input placeholder='channels (team:channel, comma-separated)' value={draftChannels} onChange={(e) => setDraftChannels(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
+            <input placeholder='teams (comma-separated URL names/slugs, required)' value={draftTeams} onChange={(e) => setDraftTeams(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
+            <input placeholder='channels optional (team-slug:channel-slug, comma-separated); leave blank for all public channels in those teams' value={draftChannels} onChange={(e) => setDraftChannels(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
             <button type='button' onClick={addOrganizer} disabled={props.disabled}>Resolve and add</button>
             {message && <div style={{marginTop: 8}}>{message}</div>}
             <h4 style={{marginTop: 16}}>Current organizers ({cfg.organizers.length})</h4>

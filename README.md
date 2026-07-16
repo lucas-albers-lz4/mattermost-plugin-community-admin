@@ -72,12 +72,16 @@ Organizers open **Community Members** from the channel header (desktop/web) or u
 
 ```json
 {
+  "version": 1,
   "site_url": "https://chat.example.org",
+  "email_domain": "community.local",
   "organizers": [
     {
       "user_id": "<mattermost-user-id>",
-      "teams": ["<team-id>"],
-      "channels": ["<team-id>:<channel-id>"]
+      "display_username": "coach.smith",
+      "teams": [{"id": "<team-id>", "name": "U12 Soccer"}],
+      "channels": [],
+      "all_channels_in_teams": ["<team-id>"]
     }
   ]
 }

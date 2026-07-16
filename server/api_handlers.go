@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
+	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
 )
 
@@ -60,14 +61,105 @@ func (p *Plugin) handleMe(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}
+	teams, channels := p.scopeChoicesForOrganizer(ctx.Organizer)
 	p.writeJSON(w, http.StatusOK, map[string]any{
 		"user_id":          ctx.ActorID,
 		"display_username": ctx.Organizer.DisplayUsername,
-		"teams":            ctx.Organizer.Teams,
-		"channels":         ctx.Organizer.Channels,
+		"teams":            teams,
+		"channels":         channels,
 		"permissions":      ctx.Organizer.Permissions,
 		"site_url":         ctx.Config.SiteURL,
 	})
+}
+
+// scopeChoicesForOrganizer returns team/channel options for the Create User UI.
+// Explicit Channels are included; for each team in AllChannelsInTeams, public
+// channels are listed live so dropdowns are not empty when ScopeEditor defaults
+// to all_channels_in_teams with channels:[].
+func (p *Plugin) scopeChoicesForOrganizer(org *config.Organizer) ([]config.TeamRef, []config.ChannelRef) {
+	teams := make([]config.TeamRef, 0, len(org.Teams))
+	for _, t := range org.Teams {
+		if t.ID == "" {
+			continue
+		}
+		ref := t
+		if tm, err := p.client.Team.Get(t.ID); err == nil && tm != nil {
+			if tm.DisplayName != "" {
+				ref.Name = tm.DisplayName
+			} else if tm.Name != "" {
+				ref.Name = tm.Name
+			}
+		}
+		if ref.Name == "" {
+			ref.Name = ref.ID
+		}
+		teams = append(teams, ref)
+	}
+
+	seen := make(map[string]struct{}, len(org.Channels))
+	channels := make([]config.ChannelRef, 0, len(org.Channels))
+	for _, ch := range org.Channels {
+		if ch.ID == "" {
+			continue
+		}
+		ref := ch
+		if c, err := p.client.Channel.Get(ch.ID); err == nil && c != nil {
+			if c.DisplayName != "" {
+				ref.Name = c.DisplayName
+			} else if c.Name != "" {
+				ref.Name = c.Name
+			}
+			if ref.TeamID == "" {
+				ref.TeamID = c.TeamId
+			}
+		}
+		if ref.Name == "" {
+			ref.Name = ref.ID
+		}
+		seen[ref.ID] = struct{}{}
+		channels = append(channels, ref)
+	}
+
+	for _, teamID := range org.AllChannelsInTeams {
+		if teamID == "" {
+			continue
+		}
+		page := 0
+		for {
+			list, err := p.client.Channel.ListPublicChannelsForTeam(teamID, page, 200)
+			if err != nil {
+				p.API.LogWarn("failed to list public channels for scope UI", "team_id", teamID, "error", err.Error())
+				break
+			}
+			if len(list) == 0 {
+				break
+			}
+			for _, ch := range list {
+				if ch == nil || ch.Id == "" {
+					continue
+				}
+				if _, ok := seen[ch.Id]; ok {
+					continue
+				}
+				seen[ch.Id] = struct{}{}
+				name := ch.DisplayName
+				if name == "" {
+					name = ch.Name
+				}
+				channels = append(channels, config.ChannelRef{
+					ID:     ch.Id,
+					TeamID: ch.TeamId,
+					Name:   name,
+				})
+			}
+			if len(list) < 200 {
+				break
+			}
+			page++
+		}
+	}
+
+	return teams, channels
 }
 
 func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +229,10 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var body createUserBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		return
+	}
+	if len(body.TeamIDs) == 0 {
+		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "at least one team_id is required"})
 		return
 	}
 
@@ -546,7 +642,10 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 			p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "team not found: " + name})
 			return
 		}
-		teams = append(teams, map[string]string{"id": t.Id, "name": t.Name})
+		teams = append(teams, map[string]string{"id": t.Id, "name": t.DisplayName})
+		if teams[len(teams)-1]["name"] == "" {
+			teams[len(teams)-1]["name"] = t.Name
+		}
 	}
 	out["teams"] = teams
 
@@ -561,7 +660,10 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 			p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "channel not found: " + spec})
 			return
 		}
-		channels = append(channels, map[string]string{"id": ch.Id, "team_id": ch.TeamId, "name": ch.Name})
+		channels = append(channels, map[string]string{"id": ch.Id, "team_id": ch.TeamId, "name": ch.DisplayName})
+		if channels[len(channels)-1]["name"] == "" {
+			channels[len(channels)-1]["name"] = ch.Name
+		}
 	}
 	out["channels"] = channels
 	p.writeJSON(w, http.StatusOK, out)

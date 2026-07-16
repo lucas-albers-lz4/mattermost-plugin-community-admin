@@ -16,24 +16,44 @@ After **Resolve and add**, click **Save** to persist. Reload the page to confirm
 
 ```json
 {
+  "version": 1,
   "site_url": "https://example.com",
+  "email_domain": "community.local",
   "organizers": [
     {
       "user_id": "<mattermost-user-id>",
       "display_username": "organizer.name",
-      "teams": ["<team-id>"],
-      "channels": ["<team-id>:<channel-id>"],
-      "all_channels_in_teams": false,
-      "allow_global_deactivate": false
+      "teams": [
+        {"id": "<team-id>", "name": "Team Display Name"}
+      ],
+      "channels": [
+        {"id": "<channel-id>", "team_id": "<team-id>", "name": "Town Square"}
+      ],
+      "all_channels_in_teams": ["<team-id>"],
+      "permissions": {
+        "create_user": true,
+        "edit_profile": true,
+        "reset_password": true,
+        "manage_membership": true,
+        "remove_from_team": true,
+        "deactivate_globally": false
+      },
+      "rate_limits": {
+        "creates_per_hour": 20,
+        "password_resets_per_hour": 10
+      }
     }
   ]
 }
 ```
 
 - **user_id** is authoritative; usernames are display-only.
-- **teams** limits which team memberships an organizer can manage.
-- **channels** (optional) further restricts visiblity when not using `all_channels_in_teams`.
+- **teams** is an array of `{id, name}` objects (not bare ID strings). At least one team is required for Create User dropdowns.
+- **channels** is optional explicit `{id, team_id, name}` allowlist.
+- **all_channels_in_teams** is a list of team IDs whose **public** channels are allowed (and listed in Create User). Prefer this when you want every public channel in the team without listing each one. Use `[]` when restricting to explicit `channels` only.
 - Only system administrators can edit this setting.
+
+Create User loads teams/channels from `GET /me`. That endpoint expands `all_channels_in_teams` into live public channel options so the channel dropdown is not empty when `channels` is `[]`.
 
 ## Server prerequisites
 
