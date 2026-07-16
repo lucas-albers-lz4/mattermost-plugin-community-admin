@@ -26,6 +26,15 @@ After `make setup-hooks`, each commit runs:
 
 Skip once in an emergency: `git commit --no-verify` (use sparingly).
 
+## CI notes
+
+GitHub Actions uses Mattermost’s reusable `plugin-ci` workflow. Log lines about **Node 20 deprecation** or **`punycode` DEP0040** come from upstream Action runtimes (`setup-go`, artifact upload/cache cleanup), not from this plugin’s app code. They are safe to ignore while jobs stay green.
+
+- App/CI Node for the webapp is controlled by [`.nvmrc`](.nvmrc) (Node 24.x).
+- Do **not** set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` to quiet the warning — that opts back into Node 20.
+
+Warnings should disappear when Mattermost bumps those Action pins to runtimes that declare Node 24.
+
 ## Pull requests
 
 1. Open an issue for significant changes when possible.
