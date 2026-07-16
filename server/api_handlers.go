@@ -609,12 +609,177 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 	p.writeJSON(w, http.StatusOK, map[string]any{"results": results, "dry_run": dryRun})
 }
 
-func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
-	// System-admin-only helper for ScopeEditor: resolve usernames and team:channel to IDs.
+// requireSystemAdmin writes 403 and returns false unless the caller is a system admin.
+func (p *Plugin) requireSystemAdmin(w http.ResponseWriter, r *http.Request) bool {
 	actorID := p.actorID(r)
 	user, err := p.client.User.Get(actorID)
-	if err != nil || !authz.IsSystemAdmin(user.Roles) {
+	if err != nil || user == nil || !authz.IsSystemAdmin(user.Roles) {
 		p.writeJSON(w, http.StatusForbidden, map[string]string{"error": "system admin required"})
+		return false
+	}
+	return true
+}
+
+func parsePagination(r *http.Request, defaultPage, defaultPerPage int) (page, perPage int) {
+	page = defaultPage
+	perPage = defaultPerPage
+	if v := r.URL.Query().Get("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			page = n
+		}
+	}
+	if v := r.URL.Query().Get("per_page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			perPage = n
+		}
+	}
+	if perPage > 200 {
+		perPage = 200
+	}
+	return page, perPage
+}
+
+func adminUserDTO(u *model.User) map[string]string {
+	if u == nil {
+		return nil
+	}
+	return map[string]string{
+		"id":         u.Id,
+		"username":   u.Username,
+		"nickname":   u.Nickname,
+		"first_name": u.FirstName,
+		"last_name":  u.LastName,
+	}
+}
+
+func adminTeamDTO(t *model.Team) map[string]string {
+	if t == nil {
+		return nil
+	}
+	display := t.DisplayName
+	if display == "" {
+		display = t.Name
+	}
+	return map[string]string{
+		"id":           t.Id,
+		"name":         t.Name,
+		"display_name": display,
+	}
+}
+
+func adminChannelDTO(ch *model.Channel) map[string]string {
+	if ch == nil {
+		return nil
+	}
+	display := ch.DisplayName
+	if display == "" {
+		display = ch.Name
+	}
+	return map[string]string{
+		"id":           ch.Id,
+		"team_id":      ch.TeamId,
+		"name":         ch.Name,
+		"display_name": display,
+	}
+}
+
+func (p *Plugin) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
+	if !p.requireSystemAdmin(w, r) {
+		return
+	}
+	page, perPage := parsePagination(r, 0, 50)
+	term := strings.TrimSpace(r.URL.Query().Get("term"))
+
+	var users []*model.User
+	var err error
+	if term != "" {
+		users, err = p.client.User.Search(&model.UserSearch{
+			Term:  term,
+			Limit: perPage,
+		})
+	} else {
+		users, err = p.client.User.List(&model.UserGetOptions{
+			Page:    page,
+			PerPage: perPage,
+			Active:  true,
+		})
+	}
+	if err != nil {
+		p.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	out := make([]map[string]string, 0, len(users))
+	for _, u := range users {
+		if dto := adminUserDTO(u); dto != nil {
+			out = append(out, dto)
+		}
+	}
+	p.writeJSON(w, http.StatusOK, map[string]any{"users": out})
+}
+
+func (p *Plugin) handleAdminListTeams(w http.ResponseWriter, r *http.Request) {
+	if !p.requireSystemAdmin(w, r) {
+		return
+	}
+	page, perPage := parsePagination(r, 0, 200)
+
+	teams, err := p.client.Team.List()
+	if err != nil {
+		p.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	start := min(page*perPage, len(teams))
+	end := min(start+perPage, len(teams))
+	pageTeams := teams[start:end]
+
+	out := make([]map[string]string, 0, len(pageTeams))
+	for _, t := range pageTeams {
+		if dto := adminTeamDTO(t); dto != nil {
+			out = append(out, dto)
+		}
+	}
+	p.writeJSON(w, http.StatusOK, map[string]any{"teams": out})
+}
+
+func (p *Plugin) handleAdminListTeamChannels(w http.ResponseWriter, r *http.Request) {
+	if !p.requireSystemAdmin(w, r) {
+		return
+	}
+	teamID := mux.Vars(r)["team_id"]
+	if teamID == "" {
+		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "team_id required"})
+		return
+	}
+
+	out := make([]map[string]string, 0)
+	page := 0
+	for {
+		list, err := p.client.Channel.ListPublicChannelsForTeam(teamID, page, 200)
+		if err != nil {
+			p.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		if len(list) == 0 {
+			break
+		}
+		for _, ch := range list {
+			if dto := adminChannelDTO(ch); dto != nil {
+				out = append(out, dto)
+			}
+		}
+		if len(list) < 200 {
+			break
+		}
+		page++
+	}
+	p.writeJSON(w, http.StatusOK, map[string]any{"channels": out})
+}
+
+func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
+	// System-admin-only helper for ScopeEditor: resolve usernames and team:channel to IDs.
+	if !p.requireSystemAdmin(w, r) {
 		return
 	}
 

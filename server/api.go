@@ -27,6 +27,11 @@ func (p *Plugin) initRouter() *mux.Router {
 	api.HandleFunc("/audit", p.handleAudit).Methods(http.MethodGet)
 	api.HandleFunc("/resolve-scope", p.handleResolveScope).Methods(http.MethodPost)
 
+	// System-admin-only helpers for ScopeEditor dropdowns.
+	api.HandleFunc("/admin/users", p.handleAdminListUsers).Methods(http.MethodGet)
+	api.HandleFunc("/admin/teams", p.handleAdminListTeams).Methods(http.MethodGet)
+	api.HandleFunc("/admin/teams/{team_id}/channels", p.handleAdminListTeamChannels).Methods(http.MethodGet)
+
 	return router
 }
 
