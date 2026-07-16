@@ -1,13 +1,15 @@
-import React, {useState} from 'react';
-import type {Store} from 'redux';
-import type {UnknownAction} from 'redux';
-import type {GlobalState} from '@mattermost/types/store';
-import type {PluginRegistry} from 'types/mattermost-webapp';
 import manifest from 'manifest';
+import React, {useState} from 'react';
+import type {Store, UnknownAction} from 'redux';
 
-import CommunityPanel from './components/CommunityPanel';
+import type {GlobalState} from '@mattermost/types/store';
+
+import type {PluginRegistry} from 'types/mattermost-webapp';
+
 import ScopeEditor from './admin_console/ScopeEditor';
-import {pluginFetch, MeResponse} from './api';
+import type {MeResponse} from './api';
+import {pluginFetch} from './api';
+import CommunityPanel from './components/CommunityPanel';
 
 type PanelWrapperProps = {
     onClose: () => void;
@@ -50,6 +52,7 @@ export default class Plugin {
 
         // Exposed for Playwright e2e when Entry Edition omits plugin menu items.
         // Opening the RHS still requires a successful /me organizer check in PanelWrapper.
+        // eslint-disable-next-line no-underscore-dangle -- intentional e2e hook on window
         window.__communityAdminOpenPanel = openPanel;
 
         registry.registerChannelHeaderButtonAction(

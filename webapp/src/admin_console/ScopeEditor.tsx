@@ -90,17 +90,22 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                 return;
             }
 
+            const resolvedTeams = resolved.teams || [];
+            const resolvedChannels = resolved.channels || [];
+
+            // When no explicit channels are listed, allow all public channels in scoped teams.
+            const allChannelsInTeams = resolvedChannels.length === 0 ?
+                resolvedTeams.map((t) => t.id) :
+                [];
+
             const next = {...cfg};
             next.organizers = next.organizers.filter((o) => o.user_id !== resolved.organizer!.user_id);
             next.organizers.push({
                 user_id: resolved.organizer.user_id,
                 display_username: resolved.organizer.username,
-                teams: resolved.teams || [],
-                channels: resolved.channels || [],
-                // When no explicit channels are listed, allow all public channels in scoped teams.
-                all_channels_in_teams: (resolved.channels || []).length === 0
-                    ? (resolved.teams || []).map((t) => t.id)
-                    : [],
+                teams: resolvedTeams,
+                channels: resolvedChannels,
+                all_channels_in_teams: allChannelsInTeams,
                 permissions: {
                     create_user: true,
                     edit_profile: true,
@@ -125,7 +130,7 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
         <div>
             <p>{props.helpText}</p>
             <label>
-                Site URL
+                {'Site URL'}
                 <input
                     value={cfg.site_url}
                     onChange={(e) => persist({...cfg, site_url: e.target.value})}
@@ -133,22 +138,49 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                 />
             </label>
             <label>
-                Email domain
+                {'Email domain'}
                 <input
                     value={cfg.email_domain}
                     onChange={(e) => persist({...cfg, email_domain: e.target.value})}
                     style={{display: 'block', width: '100%', marginBottom: 8}}
                 />
             </label>
-            <h4>Add organizer</h4>
-            <input placeholder='organizer username' value={draftUsername} onChange={(e) => setDraftUsername(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
-            <input placeholder='teams (comma-separated URL names/slugs, required)' value={draftTeams} onChange={(e) => setDraftTeams(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
-            <input placeholder='channels optional (team-slug:channel-slug, comma-separated); leave blank for all public channels in those teams' value={draftChannels} onChange={(e) => setDraftChannels(e.target.value)} style={{width: '100%', marginBottom: 8}}/>
-            <button type='button' onClick={addOrganizer} disabled={props.disabled}>Resolve and add</button>
+            <h4>{'Add organizer'}</h4>
+            <input
+                placeholder='organizer username'
+                value={draftUsername}
+                onChange={(e) => setDraftUsername(e.target.value)}
+                style={{width: '100%', marginBottom: 8}}
+            />
+            <input
+                placeholder='teams (comma-separated URL names/slugs, required)'
+                value={draftTeams}
+                onChange={(e) => setDraftTeams(e.target.value)}
+                style={{width: '100%', marginBottom: 8}}
+            />
+            <input
+                placeholder='channels optional (team-slug:channel-slug, comma-separated); leave blank for all public channels in those teams'
+                value={draftChannels}
+                onChange={(e) => setDraftChannels(e.target.value)}
+                style={{width: '100%', marginBottom: 8}}
+            />
+            <button
+                type='button'
+                onClick={addOrganizer}
+                disabled={props.disabled}
+            >
+                {'Resolve and add'}
+            </button>
             {message && <div style={{marginTop: 8}}>{message}</div>}
-            <h4 style={{marginTop: 16}}>Current organizers ({cfg.organizers.length})</h4>
-            <pre style={{maxHeight: 240, overflow: 'auto', background: '#f8f8f8', padding: 8}}>{JSON.stringify(cfg.organizers, null, 2)}</pre>
-            <h4>Raw JSON</h4>
+            <h4 style={{marginTop: 16}}>
+                {'Current organizers ('}
+                {cfg.organizers.length}
+                {')'}
+            </h4>
+            <pre style={{maxHeight: 240, overflow: 'auto', background: '#f8f8f8', padding: 8}}>
+                {JSON.stringify(cfg.organizers, null, 2)}
+            </pre>
+            <h4>{'Raw JSON'}</h4>
             <textarea
                 value={serializeConfig(cfg)}
                 onChange={(e) => {
