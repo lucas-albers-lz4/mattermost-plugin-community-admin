@@ -7,10 +7,12 @@
 The custom ScopeEditor UI supports:
 
 1. **Site URL** — included in credential handoff text (e.g. `https://chat.example.org`).
-2. **Organizers** — add by username (resolved to user ID), assign teams and optional channels.
+2. **Organizers** — pick a user from a searchable dropdown, multi-select teams, and optionally multi-select channels (populated from the live server). Leave channels empty to allow all public channels in the selected teams.
 3. **Raw JSON** — advanced edit; Save enables when JSON is dirty.
 
-After **Resolve and add**, click **Save** to persist. Reload the page to confirm values stick.
+After **Add organizer**, click **Save** to persist. Reload the page to confirm values stick.
+
+Dropdowns call system-admin-only plugin APIs (`GET /api/v1/admin/users`, `/admin/teams`, `/admin/teams/{id}/channels`). Non-admins cannot use them.
 
 ## ScopeConfig JSON shape
 
