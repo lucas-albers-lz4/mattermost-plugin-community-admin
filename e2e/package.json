@@ -8,7 +8,7 @@
     "screenshots:headed": "SCREENSHOTS=1 playwright test --grep @screenshots --headed"
   },
   "devDependencies": {
-    "@playwright/test": "1.49.1",
+    "@playwright/test": "1.61.1",
     "dotenv": "16.4.7"
   }
 }
