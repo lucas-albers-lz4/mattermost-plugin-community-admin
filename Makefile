@@ -192,7 +192,7 @@ install-go-tools:
 install-dev-tools: install-go-tools
 	@echo Installing dev tools for pre-commit hooks
 	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
-	@command -v gitleaks >/dev/null 2>&1 || echo "Install gitleaks: brew install gitleaks (https://github.com/gitleaks/gitleaks)"
+	@command -v gitleaks >/dev/null 2>&1 || echo "Install gitleaks: brew install gitleaks (macOS) or apt install gitleaks (Linux) — see https://github.com/gitleaks/gitleaks"
 
 ## Install git pre-commit hook from .githooks/
 .PHONY: setup-hooks

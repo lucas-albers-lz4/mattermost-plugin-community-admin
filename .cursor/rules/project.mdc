@@ -36,6 +36,6 @@ Pre-commit runs: gitleaks (staged), go vet, golangci-lint (incl. gosec), go test
 
 ## Agent defaults
 
-- Module/import path: `github.com/lalbers/mattermost-plugin-community-admin`
+- Module/import path: `github.com/lucas-albers-lz4/mattermost-plugin-community-admin`
 - Minimal diffs; do not commit `e2e/.env` or `dist/`
 - Do not commit or push unless explicitly asked

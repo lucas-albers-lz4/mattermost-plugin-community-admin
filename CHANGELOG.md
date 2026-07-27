@@ -22,4 +22,4 @@ Initial public release (MVP).
 - Mattermost 6.2.1+ (validated on 11.8.x Team / Entry Edition)
 - `ServiceSettings.EnableLocalMode: true` for password reset
 
-[1.0.0]: https://github.com/lalbers/mattermost-plugin-community-admin/releases/tag/v1.0.0
+[1.0.0]: https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/releases/tag/v1.0.0

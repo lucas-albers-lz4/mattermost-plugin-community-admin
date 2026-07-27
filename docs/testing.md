@@ -4,9 +4,9 @@
 
 | Item | Value |
 |------|-------|
-| URL | `https://doomzilla.duckdns.org` |
+| URL | `https://<test-hostname>` |
 | Instance | `mattermost-test` on deploy VM |
-| Start | `ssh ubuntu@129.146.67.228 '/opt/mattermost/ops/manage-test-instance.sh start'` |
+| Start | `ssh ubuntu@<test-ip> '/opt/mattermost/ops/manage-test-instance.sh start'` |
 | Stop | `... manage-test-instance.sh stop` |
 
 Runs must originate from an IP in `TEST_ALLOWED_CIDR` (your desktop by default).
@@ -72,7 +72,7 @@ npm run screenshots              # headless
 npm run screenshots:headed       # visible browser for debugging
 ```
 
-Outputs to `docs/images/community-admin/`. Credential passwords are redacted before capture. See [docs/images/community-admin/README.md](images/community-admin/README.md) for the file manifest.
+Outputs to `docs/images/community-admin/`. Credential passwords are redacted before capture. See [images/community-admin/README.md](images/community-admin/README.md) for the file manifest.
 
 Sync a subset to the deploy repo:
 

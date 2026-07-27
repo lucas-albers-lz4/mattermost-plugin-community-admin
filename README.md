@@ -40,7 +40,7 @@ Delegated user management for **invite-only Mattermost communities**. System adm
 
 ### Option A — Release tarball (recommended)
 
-1. Download the latest `com.lalbers.community-admin-*.tar.gz` from [Releases](https://github.com/lalbers/mattermost-plugin-community-admin/releases).
+1. Download the latest `com.lalbers.community-admin-*.tar.gz` from [Releases](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/releases).
 2. Verify checksum against `SHA256SUMS` in the release assets.
 3. Upload and enable:
 
@@ -54,7 +54,7 @@ Or use **System Console → Plugins → Plugin Management → Upload**.
 ### Option B — Build from source
 
 ```sh
-git clone https://github.com/lalbers/mattermost-plugin-community-admin.git
+git clone https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin.git
 cd mattermost-plugin-community-admin
 make dist
 mmctl plugin add dist/com.lalbers.community-admin-*.tar.gz

@@ -2,8 +2,8 @@
     "id": "com.lalbers.community-admin",
     "name": "Community Admin",
     "description": "Delegated organizer user management for invite-only Mattermost communities.",
-    "homepage_url": "https://github.com/lalbers/mattermost-plugin-community-admin",
-    "support_url": "https://github.com/lalbers/mattermost-plugin-community-admin/issues",
+    "homepage_url": "https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin",
+    "support_url": "https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues",
     "icon_path": "assets/icon.svg",
     "min_server_version": "6.2.1",
     "server": {
