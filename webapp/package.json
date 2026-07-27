@@ -100,5 +100,11 @@
       "<rootDir>/tests/setup.tsx"
     ],
     "testURL": "http://localhost:8065"
+  },
+  "overrides": {
+    "js-yaml": "4.3.0",
+    "brace-expansion@1": "1.1.16",
+    "brace-expansion@2": "2.1.2",
+    "minimatch@9": "9.0.9"
   }
 }
