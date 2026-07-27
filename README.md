@@ -2,9 +2,11 @@
 
 Delegated user management for **invite-only Mattermost communities**. System administrators configure trusted organizers; organizers create members, reset passwords, and manage team membership within assigned scope — without email invites or full system-admin access.
 
-**Plugin ID:** `com.lalbers.community-admin`  
-**License:** Apache 2.0  
+**Plugin ID:** `com.lalbers.community-admin`  \
+**License:** Apache 2.0  \
 **Status:** Community-maintained (not affiliated with Mattermost, Inc.)
+
+> **Note on naming:** The plugin ID `com.lalbers.community-admin` is the install/upgrade key in Mattermost's plugin registry. It remains `lalbers` because changing it would orphan existing installations. The repository moved to `github.com/lucas-albers-lz4` — all documentation links use the new URL.
 
 ---
 

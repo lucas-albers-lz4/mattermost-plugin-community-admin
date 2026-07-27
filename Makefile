@@ -187,6 +187,11 @@ install-go-tools:
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0
 	$(GO) install gotest.tools/gotestsum@v1.13.0
 
+## Check all markdown links are valid (requires lychee: https://github.com/lycheeverse/lychee)
+.PHONY: check-links
+check-links:
+	lychee --no-progress --exclude "localhost" --exclude "127.0.0.1" README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md docs/ e2e/
+
 ## Install dev tools for local pre-commit hooks
 .PHONY: install-dev-tools
 install-dev-tools: install-go-tools
