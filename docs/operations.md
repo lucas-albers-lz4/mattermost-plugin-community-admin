@@ -10,20 +10,11 @@ Output: `dist/com.lalbers.community-admin-<version>.tar.gz`
 
 ## Install (production)
 
-From the [mattermost-oci-deploy](https://github.com/lucas-albers-lz4/mattermost-oci-deploy) repository (optional helper for a specific deployment):
+Installation instructions are in the [root README](../README.md#installation). The recommended approach is:
 
-```sh
-scripts/install-community-admin-plugin.sh
-```
-
-Or manually inside the Mattermost container:
-
-```sh
-mmctl --local plugin add /path/to/com.lalbers.community-admin.tar.gz
-mmctl --local plugin enable com.lalbers.community-admin
-```
-
-`PluginSettings.EnableUploads` must be true for `plugin add` unless the tarball is placed directly in the configured plugin directory by an operator.
+- **Release tarball** — download from [Releases](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/releases) and install via `mmctl plugin add` (see the [Configuration guide](configuration.md) for prerequisites)
+- **Build from source** — `make dist` then `mmctl plugin add dist/com.lalbers.community-admin-*.tar.gz`
+- **mattermost-oci-deploy** — if using this deployment helper, run `scripts/install-community-admin-plugin.sh`
 
 ## Test instance (mattermost-oci-deploy)
 
@@ -65,6 +56,28 @@ docker compose ... exec -T mattermost-test sh -c '
 ```
 
 Hard-refresh the browser after webapp updates (bundle is cached).
+
+## Upgrading
+
+To upgrade an existing installation:
+
+1. Download the newer `com.lalbers.community-admin-*.tar.gz` from [Releases](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/releases).
+2. On the Mattermost server:
+   ```sh
+   mmctl --local plugin disable com.lalbers.community-admin
+   mmctl --local plugin delete com.lalbers.community-admin
+   mmctl --local plugin add /path/to/com.lalbers.community-admin-<version>.tar.gz
+   mmctl --local plugin enable com.lalbers.community-admin
+   ```
+3. Hard-refresh the browser after webapp updates (bundle is cached).
+
+After upgrading, confirm the plugin is active:
+
+```sh
+mmctl --local plugin list | grep community-admin
+```
+
+If the panel does not load after upgrade, see [Webapp bundle 404](#webapp-bundle-404) below.
 
 ## Troubleshooting
 
