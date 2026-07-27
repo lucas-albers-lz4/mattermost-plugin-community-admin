@@ -10,7 +10,7 @@ Output: `dist/com.lalbers.community-admin-<version>.tar.gz`
 
 ## Install (production)
 
-From the [mattermost-oci-deploy](https://github.com/lalbers/mattermost-oci-deploy) repository (optional helper for a specific deployment):
+From the [mattermost-oci-deploy](https://github.com/lucas-albers-lz4/mattermost-oci-deploy) repository (optional helper for a specific deployment):
 
 ```sh
 scripts/install-community-admin-plugin.sh
@@ -29,8 +29,8 @@ mmctl --local plugin enable com.lalbers.community-admin
 
 | Item | Value |
 |------|-------|
-| URL | `https://doomzilla.duckdns.org` |
-| VM | `ubuntu@129.146.67.228` |
+| URL | `https://<test-hostname>` |
+| VM | `ubuntu@<test-ip>` |
 | Start / stop | `/opt/mattermost/ops/manage-test-instance.sh start\|stop` |
 | Access | IP-restricted (`TEST_ALLOWED_CIDR` in deploy `generated.env`) |
 
@@ -38,7 +38,7 @@ After starting the test container, confirm the plugin is active:
 
 ```sh
 mmctl --local plugin list
-curl -sS https://doomzilla.duckdns.org/api/v4/plugins/webapp -H "Authorization: Bearer <token>"
+curl -sS https://<test-hostname>/api/v4/plugins/webapp -H "Authorization: Bearer ***"
 ```
 
 ## Deploy updated plugin to test
@@ -47,7 +47,7 @@ From your workstation (plugin repo):
 
 ```sh
 make dist
-scp dist/com.lalbers.community-admin-*.tar.gz ubuntu@129.146.67.228:/tmp/community-admin.tar.gz
+scp dist/com.lalbers.community-admin-*.tar.gz ubuntu@<test-ip>:/tmp/community-admin.tar.gz
 ```
 
 On the VM:

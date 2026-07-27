@@ -5,9 +5,9 @@ Thank you for your interest in improving Community Admin.
 ## Development setup
 
 ```sh
-git clone https://github.com/lalbers/mattermost-plugin-community-admin.git
+git clone https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin.git
 cd mattermost-plugin-community-admin
-make install-dev-tools   # golangci-lint, govulncheck; brew install gitleaks
+make install-dev-tools   # golangci-lint, govulncheck; brew install gitleaks (or apt on Linux)
 make setup-hooks         # install pre-commit hook
 go test ./...
 cd webapp && npm install && npm run build && cd ..
