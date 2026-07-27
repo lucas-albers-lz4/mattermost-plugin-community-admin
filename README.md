@@ -91,14 +91,16 @@ Full reference: [docs/configuration.md](docs/configuration.md)
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [docs/configuration.md](docs/configuration.md) | Scope editor, prerequisites, JSON schema |
-| [docs/user-guide.md](docs/user-guide.md) | Panel and slash commands for organizers |
-| [docs/operations.md](docs/operations.md) | Deploy, upgrade, troubleshooting |
-| [docs/testing.md](docs/testing.md) | API smoke and Playwright e2e |
-| [docs/design.md](docs/design.md) | Architecture and API decisions |
-| [SECURITY.md](SECURITY.md) | Security model and reporting |
+| Audience | Start here |
+|----------|------------|
+| **Organizers** | [User guide](docs/user-guide.md) — panel, slash commands, credential handoff |
+| **Operators / admins** | [Configuration](docs/configuration.md) — scope editor, JSON schema |
+| **Operators / devs** | [Operations](docs/operations.md) — deploy, upgrade, troubleshooting |
+| **Developers** | [Design](docs/design.md) — architecture, API, authz |
+| **Developers** | [Testing](docs/testing.md) — API smoke, Playwright e2e, manual checklist |
+| **Everyone** | [FAQ](docs/FAQ.md) — common questions and answers |
+
+See [docs/README.md](docs/README.md) for the full documentation index.
 
 ## Development
 
