@@ -611,7 +611,11 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 	}
 	results, err := p.batchService.Import(rows, orgCtx.Organizer, cfg, dryRun, quota)
 	if err != nil {
-		p.writeError(w, err, http.StatusBadRequest)
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrBatchValidation) {
+			status = http.StatusBadRequest
+		}
+		p.writeError(w, err, status)
 		return
 	}
 	for _, res := range results {

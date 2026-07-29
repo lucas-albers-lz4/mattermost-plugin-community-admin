@@ -2,14 +2,24 @@ package service
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/mattermost/mattermost/server/public/model"
 
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 )
 
 const MaxBatchRows = 200
+
+// ErrBatchValidation marks client-fixable Import failures (HTTP 400).
+var ErrBatchValidation = errors.New("batch validation")
+
+func validationErrorf(format string, args ...any) error {
+	return fmt.Errorf("%w: %s", ErrBatchValidation, fmt.Sprintf(format, args...))
+}
 
 type BatchRow struct {
 	Username  string
@@ -23,6 +33,7 @@ type BatchRowResult struct {
 	Username   string `json:"username"`
 	Created    bool   `json:"created"`
 	Skipped    bool   `json:"skipped"`
+	SkipReason string `json:"skip_reason,omitempty"`
 	Error      string `json:"error,omitempty"`
 	Password   string `json:"password,omitempty"`
 	ParentText string `json:"parent_text,omitempty"`
@@ -30,6 +41,12 @@ type BatchRowResult struct {
 
 // CreateQuota checks whether another create is allowed (rate limit).
 type CreateQuota func() (allowed bool, err error)
+
+// batchUsers is the UserService surface Import needs (allows stubs in tests).
+type batchUsers interface {
+	GetByUsername(username string) (*model.User, error)
+	CreateUser(req CreateUserRequest, emailDomain, siteURL string) (*CreateUserResult, error)
+}
 
 // ParseBatchCSV parses community-users CSV format.
 func ParseBatchCSV(r io.Reader) ([]BatchRow, error) {
@@ -80,7 +97,7 @@ func ParseBatchCSV(r io.Reader) ([]BatchRow, error) {
 
 // BatchImportService imports users scoped to organizer teams.
 type BatchImportService struct {
-	users   *UserService
+	users   batchUsers
 	members *MembershipService
 }
 
@@ -92,7 +109,7 @@ func buildTeamNameMap(org *config.Organizer) (map[string]string, error) {
 	teamNameToID := map[string]string{}
 	for _, t := range org.Teams {
 		if prev, ok := teamNameToID[t.Name]; ok && prev != t.ID {
-			return nil, fmt.Errorf("duplicate team name %q in organizer scope; use unique names or import via API with IDs", t.Name)
+			return nil, validationErrorf("duplicate team name %q in organizer scope; use unique names or import via API with IDs", t.Name)
 		}
 		teamNameToID[t.Name] = t.ID
 	}
@@ -101,7 +118,7 @@ func buildTeamNameMap(org *config.Organizer) (map[string]string, error) {
 
 func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg *config.ScopeConfig, dryRun bool, quota CreateQuota) ([]BatchRowResult, error) {
 	if len(rows) > MaxBatchRows {
-		return nil, fmt.Errorf("batch exceeds maximum of %d rows", MaxBatchRows)
+		return nil, validationErrorf("batch exceeds maximum of %d rows", MaxBatchRows)
 	}
 
 	teamNameToID, err := buildTeamNameMap(org)
@@ -137,6 +154,7 @@ func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg 
 
 		if dryRun {
 			res.Skipped = true
+			res.SkipReason = "dry_run"
 			results = append(results, res)
 			continue
 		}
@@ -145,7 +163,7 @@ func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg 
 		if err == nil && existing != nil {
 			// Do not mutate membership for existing users — that bypasses authz/protected checks.
 			res.Skipped = true
-			res.Error = "user already exists (membership not modified; use membership API)"
+			res.SkipReason = "user already exists (membership not modified; use membership API)"
 			results = append(results, res)
 			continue
 		}
