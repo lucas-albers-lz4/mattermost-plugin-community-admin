@@ -105,7 +105,7 @@ func (h *Handler) resetPassword(orgCtx *authz.OrganizerContext, checker *authz.C
 
 	ok, err := h.rateLimitService.CheckAndIncrement(args.UserId, "reset_password", orgCtx.Organizer.RateLimits.EffectivePasswordResetsPerHour())
 	if err != nil {
-		return ephemeral("Password reset failed."), nil
+		return ephemeral("Rate limit check failed."), nil
 	}
 	if !ok {
 		return ephemeral("Rate limit exceeded for password resets."), nil
@@ -116,13 +116,15 @@ func (h *Handler) resetPassword(orgCtx *authz.OrganizerContext, checker *authz.C
 		return ephemeral("Password reset failed."), nil
 	}
 
-	_ = h.auditService.Record(service.AuditEntry{
+	if err := h.auditService.Record(service.AuditEntry{
 		ActorID:        args.UserId,
 		ActorUsername:  actorUsername(h.client, args.UserId),
 		Action:         "reset_password",
 		TargetID:       target.Id,
 		TargetUsername: target.Username,
-	})
+	}); err != nil {
+		h.client.Log.Warn("audit record failed", "action", "reset_password", "error", err.Error())
+	}
 
 	return ephemeral(fmt.Sprintf("Password reset for **%s**.\n\n%s", username, result.ParentText)), nil
 }
@@ -143,14 +145,16 @@ func (h *Handler) removeFromTeam(orgCtx *authz.OrganizerContext, checker *authz.
 		return ephemeral("Failed to remove user from team."), nil
 	}
 
-	_ = h.auditService.Record(service.AuditEntry{
+	if err := h.auditService.Record(service.AuditEntry{
 		ActorID:        args.UserId,
 		ActorUsername:  actorUsername(h.client, args.UserId),
 		Action:         "remove_team_member",
 		TargetID:       target.Id,
 		TargetUsername: target.Username,
 		TeamID:         team.Id,
-	})
+	}); err != nil {
+		h.client.Log.Warn("audit record failed", "action", "remove_team_member", "error", err.Error())
+	}
 
 	return ephemeral(fmt.Sprintf("Removed **%s** from team **%s**.", username, teamName)), nil
 }
