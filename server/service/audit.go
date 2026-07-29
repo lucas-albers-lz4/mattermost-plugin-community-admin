@@ -73,6 +73,7 @@ func (s *AuditService) Record(entry AuditEntry) error {
 	}
 
 	var toDelete []string
+	cutoff := time.Now().UTC().Add(-auditRetention)
 	err = s.kv.SetAtomicWithRetries(auditIndexKey, func(oldValue []byte) (any, error) {
 		var index []string
 		if len(oldValue) > 0 {
@@ -82,11 +83,29 @@ func (s *AuditService) Record(entry AuditEntry) error {
 		}
 		index = append([]string{entry.ID}, index...)
 		toDelete = nil
-		if len(index) > maxAuditEntries {
-			toDelete = append([]string(nil), index[maxAuditEntries:]...)
-			index = index[:maxAuditEntries]
+		kept := make([]string, 0, len(index))
+		for _, id := range index {
+			if id == entry.ID {
+				kept = append(kept, id)
+				continue
+			}
+			var existing AuditEntry
+			if err := s.kv.Get(auditKeyPrefix+id, &existing); err != nil {
+				toDelete = append(toDelete, id)
+				continue
+			}
+			ts, err := time.Parse(time.RFC3339, existing.TS)
+			if err == nil && ts.Before(cutoff) {
+				toDelete = append(toDelete, id)
+				continue
+			}
+			kept = append(kept, id)
 		}
-		return index, nil
+		if len(kept) > maxAuditEntries {
+			toDelete = append(toDelete, kept[maxAuditEntries:]...)
+			kept = kept[:maxAuditEntries]
+		}
+		return kept, nil
 	})
 	if err != nil {
 		_ = s.kv.Delete(key)

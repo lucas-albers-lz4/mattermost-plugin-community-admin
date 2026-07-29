@@ -16,6 +16,8 @@ container (see [docs/design.md](docs/design.md)):
   (plaintext never appears in `/proc/*/cmdline`)
 - 30 second timeout
 - Passwords are never written to audit logs or KV store
+- Audit `client_ip` uses Mattermost plugin context `IPAddress` when present
+  (falls back to `RemoteAddr`; forwarded headers are not parsed)
 - Internal/mmctl errors include mmctl output server-side and are not returned to organizers
   (5xx responses are redacted to a generic internal error)
 

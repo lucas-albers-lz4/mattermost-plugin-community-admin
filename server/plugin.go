@@ -84,6 +84,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
+	// Prefer Mattermost plugin context IPAddress for audit client_ip (no X-Forwarded-* parsing).
 	if c != nil && c.IPAddress != "" {
 		r = r.WithContext(context.WithValue(r.Context(), clientIPKey, c.IPAddress))
 	}

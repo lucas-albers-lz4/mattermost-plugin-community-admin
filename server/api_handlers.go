@@ -622,12 +622,14 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, status)
 		return
 	}
+	actorName := actorUsername(p.client, actorID)
+	clientIP := pluginContextIP(r)
 	for _, res := range results {
 		if res.Created {
 			_ = p.auditService.Record(service.AuditEntry{
-				ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
-				Action: "batch_create_user", TargetUsername: res.Username,
-				ClientIP: pluginContextIP(r),
+				ActorID: actorID, ActorUsername: actorName,
+				Action: "batch_create_user", TargetID: res.UserID, TargetUsername: res.Username,
+				ClientIP: clientIP,
 			})
 		}
 	}

@@ -31,6 +31,7 @@ type BatchRow struct {
 
 type BatchRowResult struct {
 	Username   string `json:"username"`
+	UserID     string `json:"user_id,omitempty"`
 	Created    bool   `json:"created"`
 	Skipped    bool   `json:"skipped"`
 	SkipReason string `json:"skip_reason,omitempty"`
@@ -231,6 +232,7 @@ func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg 
 			continue
 		}
 		res.Created = true
+		res.UserID = created.User.Id
 		res.Password = created.Password
 		res.ParentText = created.ParentText
 		results = append(results, res)

@@ -62,7 +62,7 @@ func (s *stubBatchUsers) GetByUsername(username string) (*model.User, error) {
 func (s *stubBatchUsers) CreateUser(req CreateUserRequest, _, _ string) (*CreateUserResult, error) {
 	s.created = append(s.created, req)
 	return &CreateUserResult{
-		User:       &model.User{Username: req.Username},
+		User:       &model.User{Id: "created-" + req.Username, Username: req.Username},
 		Password:   "pw",
 		ParentText: "text",
 	}, nil
