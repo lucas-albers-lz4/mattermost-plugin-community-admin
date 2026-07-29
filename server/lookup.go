@@ -17,10 +17,14 @@ func sanitizeUser(u *model.User) map[string]any {
 		"username":   u.Username,
 		"first_name": u.FirstName,
 		"last_name":  u.LastName,
-		"email":      u.Email,
 		"delete_at":  u.DeleteAt,
-		"roles":      u.Roles,
 	}
+}
+
+func sanitizeUserWithTeams(u *model.User, teamIDs []string) map[string]any {
+	out := sanitizeUser(u)
+	out["team_ids"] = teamIDs
+	return out
 }
 
 func actorUsername(client *pluginapi.Client, actorID string) string {

@@ -70,7 +70,7 @@ test.describe('Community Admin organizer panel', () => {
         await page.getByTestId('community-admin-create-submit').click();
         await expect(page.getByTestId(`community-admin-user-row-${username}`)).toBeVisible({timeout: 15_000});
 
-        await page.getByTestId(`community-admin-remove-${username}`).click();
+        await page.locator(`[data-testid^="community-admin-remove-${username}"]`).first().click();
         await expect(page.getByTestId(`community-admin-user-row-${username}`)).toHaveCount(0, {timeout: 15_000});
     });
 });

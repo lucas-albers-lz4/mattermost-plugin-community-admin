@@ -10,11 +10,6 @@ type configuration struct {
 	ScopeConfig string `json:"ScopeConfig"`
 }
 
-func (c *configuration) Clone() *configuration {
-	clone := *c
-	return &clone
-}
-
 func (p *Plugin) getScopeConfig() *config.ScopeConfig {
 	cfg := p.getConfiguration()
 	parsed, err := config.ParseScopeConfig(cfg.ScopeConfig)

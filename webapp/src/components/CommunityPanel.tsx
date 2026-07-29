@@ -297,16 +297,20 @@ const CommunityPanel: React.FC<Props> = ({onClose}) => {
                                         {'Reset password'}
                                     </button>
                                 )}
-                                {me?.permissions.remove_from_team && me?.teams?.[0] && (
-                                    <button
-                                        type='button'
-                                        data-testid={`community-admin-remove-${u.username}`}
-                                        onClick={() => removeFromTeam(u.id, me.teams[0].id)}
-                                    >
-                                        {'Remove from '}
-                                        {me.teams[0].name}
-                                    </button>
-                                )}
+                                {me?.permissions.remove_from_team && (me.teams || []).
+                                    filter((t) => (u.team_ids || []).includes(t.id)).
+                                    map((t) => (
+                                        <button
+                                            key={t.id}
+                                            type='button'
+                                            data-testid={`community-admin-remove-${u.username}-${t.id}`}
+                                            onClick={() => removeFromTeam(u.id, t.id)}
+                                            style={{marginRight: 8}}
+                                        >
+                                            {'Remove from '}
+                                            {t.name}
+                                        </button>
+                                    ))}
                             </td>
                         </tr>
                     ))}
