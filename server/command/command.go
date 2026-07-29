@@ -6,6 +6,7 @@ import (
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/pkg/errors"
 
 	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
@@ -26,9 +27,18 @@ type Handler struct {
 	scopeConfigLoader ScopeConfigLoader
 	userService       *service.UserService
 	membershipService *service.MembershipService
+	auditService      *service.AuditService
+	rateLimitService  *service.RateLimitService
 }
 
-func NewCommandHandler(client *pluginapi.Client, loader ScopeConfigLoader) Command {
+type Dependencies struct {
+	UserService       *service.UserService
+	MembershipService *service.MembershipService
+	AuditService      *service.AuditService
+	RateLimitService  *service.RateLimitService
+}
+
+func NewCommandHandler(client *pluginapi.Client, loader ScopeConfigLoader, deps Dependencies) (Command, error) {
 	err := client.SlashCommand.Register(&model.Command{
 		Trigger:          commandTrigger,
 		AutoComplete:     true,
@@ -37,14 +47,16 @@ func NewCommandHandler(client *pluginapi.Client, loader ScopeConfigLoader) Comma
 		AutocompleteData: model.NewAutocompleteData(commandTrigger, "[action]", "Organizer actions for mobile"),
 	})
 	if err != nil {
-		client.Log.Error("Failed to register slash command", "error", err)
+		return nil, errors.Wrap(err, "failed to register slash command")
 	}
 	return &Handler{
 		client:            client,
 		scopeConfigLoader: loader,
-		userService:       service.NewUserService(client),
-		membershipService: service.NewMembershipService(client),
-	}
+		userService:       deps.UserService,
+		membershipService: deps.MembershipService,
+		auditService:      deps.AuditService,
+		rateLimitService:  deps.RateLimitService,
+	}, nil
 }
 
 func (h *Handler) SetScopeConfigLoader(loader ScopeConfigLoader) {
@@ -53,7 +65,7 @@ func (h *Handler) SetScopeConfigLoader(loader ScopeConfigLoader) {
 
 func (h *Handler) Handle(args *model.CommandArgs) (*model.CommandResponse, error) {
 	cfg := h.scopeConfigLoader()
-	checker := authz.NewChecker(cfg, &pluginLookup{client: h.client})
+	checker := authz.NewChecker(cfg, authz.NewPluginUserLookup(h.client))
 	orgCtx, err := checker.ResolveOrganizer(args.UserId)
 	if err != nil {
 		return ephemeral("Community Admin: you are not an organizer."), nil
@@ -70,18 +82,19 @@ func (h *Handler) Handle(args *model.CommandArgs) (*model.CommandResponse, error
 		if len(fields) < 3 {
 			return ephemeral("Usage: /community-admin reset-password USERNAME"), nil
 		}
-		return h.resetPassword(orgCtx, checker, args, fields[2], cfg.SiteURL)
+		return h.resetPassword(orgCtx, checker, args, fields[2], cfg)
 	case "remove-from-team":
 		if len(fields) < 4 {
 			return ephemeral("Usage: /community-admin remove-from-team USERNAME TEAM_NAME"), nil
 		}
-		return h.removeFromTeam(orgCtx, checker, args, fields[2], fields[3])
+		teamName := strings.Join(fields[3:], " ")
+		return h.removeFromTeam(orgCtx, checker, args, fields[2], teamName)
 	default:
 		return ephemeral(fmt.Sprintf("Unknown action: %s", action)), nil
 	}
 }
 
-func (h *Handler) resetPassword(orgCtx *authz.OrganizerContext, checker *authz.Checker, args *model.CommandArgs, username, siteURL string) (*model.CommandResponse, error) {
+func (h *Handler) resetPassword(orgCtx *authz.OrganizerContext, checker *authz.Checker, args *model.CommandArgs, username string, cfg *config.ScopeConfig) (*model.CommandResponse, error) {
 	target, err := h.client.User.GetByUsername(username)
 	if err != nil {
 		return ephemeral("User not found."), nil
@@ -89,10 +102,30 @@ func (h *Handler) resetPassword(orgCtx *authz.OrganizerContext, checker *authz.C
 	if err := checker.Authorize(orgCtx, authz.OpResetPassword, authz.Target{UserID: target.Id}); err != nil {
 		return ephemeral("Not allowed to reset password for that user."), nil
 	}
-	result, err := h.userService.ResetPassword(username, siteURL)
+
+	ok, err := h.rateLimitService.CheckAndIncrement(args.UserId, "reset_password", orgCtx.Organizer.RateLimits.EffectivePasswordResetsPerHour())
+	if err != nil {
+		return ephemeral("Rate limit check failed."), nil
+	}
+	if !ok {
+		return ephemeral("Rate limit exceeded for password resets."), nil
+	}
+
+	result, err := h.userService.ResetPassword(username, cfg.SiteURL)
 	if err != nil {
 		return ephemeral("Password reset failed."), nil
 	}
+
+	if err := h.auditService.Record(service.AuditEntry{
+		ActorID:        args.UserId,
+		ActorUsername:  actorUsername(h.client, args.UserId),
+		Action:         "reset_password",
+		TargetID:       target.Id,
+		TargetUsername: target.Username,
+	}); err != nil {
+		h.client.Log.Warn("audit record failed", "action", "reset_password", "error", err.Error())
+	}
+
 	return ephemeral(fmt.Sprintf("Password reset for **%s**.\n\n%s", username, result.ParentText)), nil
 }
 
@@ -111,6 +144,18 @@ func (h *Handler) removeFromTeam(orgCtx *authz.OrganizerContext, checker *authz.
 	if err := h.membershipService.RemoveTeamMember(team.Id, target.Id, args.UserId); err != nil {
 		return ephemeral("Failed to remove user from team."), nil
 	}
+
+	if err := h.auditService.Record(service.AuditEntry{
+		ActorID:        args.UserId,
+		ActorUsername:  actorUsername(h.client, args.UserId),
+		Action:         "remove_team_member",
+		TargetID:       target.Id,
+		TargetUsername: target.Username,
+		TeamID:         team.Id,
+	}); err != nil {
+		h.client.Log.Warn("audit record failed", "action", "remove_team_member", "error", err.Error())
+	}
+
 	return ephemeral(fmt.Sprintf("Removed **%s** from team **%s**.", username, teamName)), nil
 }
 
@@ -121,24 +166,10 @@ func ephemeral(text string) *model.CommandResponse {
 	}
 }
 
-type pluginLookup struct {
-	client *pluginapi.Client
-}
-
-func (l *pluginLookup) GetUserInfo(userID string) (*authz.UserInfo, error) {
-	user, err := l.client.User.Get(userID)
+func actorUsername(client *pluginapi.Client, actorID string) string {
+	user, err := client.User.Get(actorID)
 	if err != nil {
-		return nil, err
+		return ""
 	}
-	teams, err := l.client.Team.List(pluginapi.FilterTeamsByUser(userID))
-	if err != nil {
-		return nil, err
-	}
-	teamIDs := make([]string, 0, len(teams))
-	for _, t := range teams {
-		teamIDs = append(teamIDs, t.Id)
-	}
-	return &authz.UserInfo{
-		ID: user.Id, Username: user.Username, Roles: user.Roles, IsBot: user.IsBot, TeamIDs: teamIDs,
-	}, nil
+	return user.Username
 }

@@ -45,7 +45,16 @@ func (p *Plugin) OnActivate() error {
 	p.rateLimitService = service.NewRateLimitService(p.client)
 	p.batchService = service.NewBatchImportService(p.userService, p.membershipService)
 
-	p.commandClient = command.NewCommandHandler(p.client, p.getScopeConfig)
+	cmd, err := command.NewCommandHandler(p.client, p.getScopeConfig, command.Dependencies{
+		UserService:       p.userService,
+		MembershipService: p.membershipService,
+		AuditService:      p.auditService,
+		RateLimitService:  p.rateLimitService,
+	})
+	if err != nil {
+		return err
+	}
+	p.commandClient = cmd
 	p.router = p.initRouter()
 
 	return nil
