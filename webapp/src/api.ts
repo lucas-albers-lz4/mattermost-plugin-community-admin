@@ -51,8 +51,8 @@ export type UserSummary = {
     username: string;
     first_name: string;
     last_name: string;
-    email: string;
     delete_at: number;
+    team_ids?: string[];
 };
 
 export type AdminUserOption = {

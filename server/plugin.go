@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"sync"
 
@@ -12,6 +13,10 @@ import (
 	"github.com/lalbers/mattermost-plugin-community-admin/server/command"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
 )
+
+type clientIPContextKey struct{}
+
+var clientIPKey = clientIPContextKey{}
 
 type Plugin struct {
 	plugin.MattermostPlugin
@@ -79,5 +84,8 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
+	if c != nil && c.IPAddress != "" {
+		r = r.WithContext(context.WithValue(r.Context(), clientIPKey, c.IPAddress))
+	}
 	p.router.ServeHTTP(w, r)
 }

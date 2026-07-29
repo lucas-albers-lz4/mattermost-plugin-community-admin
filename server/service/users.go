@@ -71,18 +71,25 @@ func (s *UserService) CreateUser(req CreateUserRequest, emailDomain, siteURL str
 		return nil, err
 	}
 
+	cleanup := func() {
+		_ = s.client.User.UpdateActive(user.Id, false)
+	}
+
 	if err := ApplyPushDefaults(s.client, user); err != nil {
+		cleanup()
 		return nil, err
 	}
 
 	for _, teamID := range req.TeamIDs {
 		if _, err := s.client.Team.CreateMember(teamID, user.Id); err != nil {
+			cleanup()
 			return nil, fmt.Errorf("add team %s: %w", teamID, err)
 		}
 	}
 
 	for _, channelID := range req.ChannelIDs {
 		if _, err := s.client.Channel.AddMember(channelID, user.Id); err != nil {
+			cleanup()
 			return nil, fmt.Errorf("add channel %s: %w", channelID, err)
 		}
 	}

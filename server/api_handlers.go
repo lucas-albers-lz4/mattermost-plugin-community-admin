@@ -182,10 +182,10 @@ func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
 
 	teamID := r.URL.Query().Get("team_id")
 	term := r.URL.Query().Get("q")
+	_, perPage := parsePagination(r, 0, 50)
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	perPage, _ := strconv.Atoi(r.URL.Query().Get("per_page"))
-	if perPage <= 0 {
-		perPage = 50
+	if page < 0 {
+		page = 0
 	}
 
 	target := authz.Target{TeamID: teamID}
@@ -211,7 +211,7 @@ func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		if !checker.UserVisible(orgCtx, teamIDsForUser) {
 			continue
 		}
-		out = append(out, sanitizeUser(u))
+		out = append(out, sanitizeUserWithTeams(u, teamIDsForUser))
 	}
 	p.writeJSON(w, http.StatusOK, map[string]any{"users": out})
 }
@@ -244,18 +244,13 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	teamID := ""
-	if len(body.TeamIDs) > 0 {
-		teamID = body.TeamIDs[0]
-	}
-	if err := checker.Authorize(orgCtx, authz.OpCreateUser, authz.Target{TeamID: teamID}); err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	if !orgCtx.Organizer.Permissions.CreateUser {
+		p.writeError(w, authz.ErrPermissionDenied, http.StatusForbidden)
 		return
 	}
-
 	for _, tid := range body.TeamIDs {
-		if !orgCtx.Organizer.HasTeam(tid) {
-			p.writeError(w, authz.ErrTeamOutOfScope, http.StatusForbidden)
+		if err := checker.Authorize(orgCtx, authz.OpCreateUser, authz.Target{TeamID: tid}); err != nil {
+			p.writeError(w, err, http.StatusForbidden)
 			return
 		}
 	}
@@ -912,5 +907,8 @@ func (p *Plugin) resolveTeamByNameOrDisplay(name string) (*model.Team, error) {
 }
 
 func pluginContextIP(r *http.Request) string {
+	if ip, ok := r.Context().Value(clientIPKey).(string); ok && ip != "" {
+		return ip
+	}
 	return r.RemoteAddr
 }

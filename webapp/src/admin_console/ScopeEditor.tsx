@@ -71,7 +71,9 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
     const [selectedUserId, setSelectedUserId] = useState('');
     const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
     const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+    const [allPublicChannels, setAllPublicChannels] = useState(false);
     const [message, setMessage] = useState('');
+    const [jsonError, setJsonError] = useState('');
     const [loadingOptions, setLoadingOptions] = useState(false);
 
     const notifyChange = useCallback((value: string) => {
@@ -204,7 +206,9 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
             };
         });
 
-        const allChannelsInTeams = resolvedChannels.length === 0 ? resolvedTeams.map((t) => t.id) : [];
+        const allChannelsInTeams = allPublicChannels && resolvedChannels.length === 0
+            ? resolvedTeams.map((t) => t.id)
+            : [];
 
         const next = {...cfg};
         next.organizers = next.organizers.filter((o) => o.user_id !== selectedUser.id);
@@ -229,6 +233,7 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
         setUserTerm('');
         setSelectedTeamIds([]);
         setSelectedChannelIds([]);
+        setAllPublicChannels(false);
         setMessage('Organizer added. Save plugin settings to apply.');
     };
 
@@ -329,6 +334,17 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                 </select>
             </label>
 
+            <label style={{display: 'block', marginBottom: 8}}>
+                <input
+                    type='checkbox'
+                    checked={allPublicChannels}
+                    onChange={(e) => setAllPublicChannels(e.target.checked)}
+                    disabled={props.disabled || selectedChannelIds.length > 0}
+                    style={{marginRight: 8}}
+                />
+                {'Allow all public channels in selected teams (when no specific channels are selected)'}
+            </label>
+
             <button
                 type='button'
                 onClick={addOrganizer}
@@ -347,16 +363,24 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                 {JSON.stringify(cfg.organizers, null, 2)}
             </pre>
             <h4>{'Raw JSON'}</h4>
+            {jsonError && (
+                <div style={{color: 'crimson', marginBottom: 8}}>
+                    {jsonError}
+                </div>
+            )}
             <textarea
                 value={serializeConfig(cfg)}
                 onChange={(e) => {
                     const {value} = e.target;
                     try {
-                        setCfg(JSON.parse(value));
+                        const parsed = JSON.parse(value) as ScopeConfig;
+                        setCfg(parsed);
+                        setJsonError('');
+                        notifyChange(value);
                     } catch {
-                        // Allow invalid JSON while editing; still mark settings dirty.
+                        setJsonError('Invalid JSON — fix before saving plugin settings');
+                        // Do not notifyChange invalid JSON (would wipe organizers server-side).
                     }
-                    notifyChange(value);
                 }}
                 rows={12}
                 style={{width: '100%', fontFamily: 'monospace'}}
