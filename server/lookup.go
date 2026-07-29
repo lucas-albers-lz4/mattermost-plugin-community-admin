@@ -7,35 +7,8 @@ import (
 	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 )
 
-// pluginUserLookup adapts plugin API to authz.UserLookup.
-type pluginUserLookup struct {
-	client *pluginapi.Client
-}
-
 func newPluginUserLookup(client *pluginapi.Client) authz.UserLookup {
-	return &pluginUserLookup{client: client}
-}
-
-func (l *pluginUserLookup) GetUserInfo(userID string) (*authz.UserInfo, error) {
-	user, err := l.client.User.Get(userID)
-	if err != nil {
-		return nil, err
-	}
-	teams, err := l.client.Team.List(pluginapi.FilterTeamsByUser(userID))
-	if err != nil {
-		return nil, err
-	}
-	teamIDs := make([]string, 0, len(teams))
-	for _, t := range teams {
-		teamIDs = append(teamIDs, t.Id)
-	}
-	return &authz.UserInfo{
-		ID:       user.Id,
-		Username: user.Username,
-		Roles:    user.Roles,
-		IsBot:    user.IsBot,
-		TeamIDs:  teamIDs,
-	}, nil
+	return authz.NewPluginUserLookup(client)
 }
 
 func sanitizeUser(u *model.User) map[string]any {
