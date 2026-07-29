@@ -13,13 +13,47 @@ import (
 
 const mmctlPath = "/mattermost/bin/mmctl"
 
+type userAPI interface {
+	Create(user *model.User) error
+	Update(user *model.User) error
+	UpdateActive(userID string, active bool) error
+	Get(userID string) (*model.User, error)
+	GetByUsername(username string) (*model.User, error)
+}
+
+type teamUsersAPI interface {
+	CreateMember(teamID, userID string) (*model.TeamMember, error)
+	ListUsers(teamID string, page, perPage int) ([]*model.User, error)
+	List(options ...pluginapi.TeamListOption) ([]*model.Team, error)
+}
+
+type channelUsersAPI interface {
+	AddMember(channelID, userID string) (*model.ChannelMember, error)
+}
+
+type warnLogger interface {
+	Warn(message string, keyValuePairs ...any)
+}
+
 // UserService handles user CRUD via plugin API.
 type UserService struct {
-	client *pluginapi.Client
+	users    userAPI
+	teams    teamUsersAPI
+	channels channelUsersAPI
+	log      warnLogger
 }
 
 func NewUserService(client *pluginapi.Client) *UserService {
-	return &UserService{client: client}
+	return &UserService{
+		users:    &client.User,
+		teams:    &client.Team,
+		channels: &client.Channel,
+		log:      &client.Log,
+	}
+}
+
+func newUserServiceForTest(users userAPI, teams teamUsersAPI, channels channelUsersAPI, log warnLogger) *UserService {
+	return &UserService{users: users, teams: teams, channels: channels, log: log}
 }
 
 type CreateUserRequest struct {
@@ -63,30 +97,30 @@ func (s *UserService) CreateUser(req CreateUserRequest, emailDomain, siteURL str
 		DisableWelcomeEmail: true,
 	}
 
-	if err := s.client.User.Create(user); err != nil {
+	if err := s.users.Create(user); err != nil {
 		return nil, err
 	}
 
 	cleanup := func() {
-		if err := s.client.User.UpdateActive(user.Id, false); err != nil {
-			s.client.Log.Warn("create-user cleanup UpdateActive failed", "user_id", user.Id, "error", err.Error())
+		if err := s.users.UpdateActive(user.Id, false); err != nil && s.log != nil {
+			s.log.Warn("create-user cleanup UpdateActive failed", "user_id", user.Id, "error", err.Error())
 		}
 	}
 
-	if err := ApplyPushDefaults(s.client, user); err != nil {
+	if err := applyPushDefaults(s.users, user); err != nil {
 		cleanup()
 		return nil, err
 	}
 
 	for _, teamID := range req.TeamIDs {
-		if _, err := s.client.Team.CreateMember(teamID, user.Id); err != nil {
+		if _, err := s.teams.CreateMember(teamID, user.Id); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("add team %s: %w", teamID, err)
 		}
 	}
 
 	for _, channelID := range req.ChannelIDs {
-		if _, err := s.client.Channel.AddMember(channelID, user.Id); err != nil {
+		if _, err := s.channels.AddMember(channelID, user.Id); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("add channel %s: %w", channelID, err)
 		}
@@ -100,20 +134,20 @@ func (s *UserService) CreateUser(req CreateUserRequest, emailDomain, siteURL str
 }
 
 func (s *UserService) UpdateProfile(userID, firstName, lastName string) (*model.User, error) {
-	user, err := s.client.User.Get(userID)
+	user, err := s.users.Get(userID)
 	if err != nil {
 		return nil, err
 	}
 	user.FirstName = firstName
 	user.LastName = lastName
-	if err := s.client.User.Update(user); err != nil {
+	if err := s.users.Update(user); err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
 func (s *UserService) SetActive(userID string, active bool) error {
-	return s.client.User.UpdateActive(userID, active)
+	return s.users.UpdateActive(userID, active)
 }
 
 type ResetPasswordResult struct {
@@ -156,11 +190,11 @@ func (s *UserService) ResetPassword(username, siteURL string) (*ResetPasswordRes
 }
 
 func (s *UserService) GetByID(userID string) (*model.User, error) {
-	return s.client.User.Get(userID)
+	return s.users.Get(userID)
 }
 
 func (s *UserService) GetByUsername(username string) (*model.User, error) {
-	return s.client.User.GetByUsername(username)
+	return s.users.GetByUsername(username)
 }
 
 func (s *UserService) SearchInTeams(teamIDs []string, term string, page, perPage int) ([]*model.User, error) {
@@ -168,7 +202,7 @@ func (s *UserService) SearchInTeams(teamIDs []string, term string, page, perPage
 	var results []*model.User
 
 	for _, teamID := range teamIDs {
-		users, err := s.client.Team.ListUsers(teamID, page, perPage)
+		users, err := s.teams.ListUsers(teamID, page, perPage)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +222,7 @@ func (s *UserService) SearchInTeams(teamIDs []string, term string, page, perPage
 }
 
 func (s *UserService) TeamIDsForUser(userID string) ([]string, error) {
-	teams, err := s.client.Team.List(pluginapi.FilterTeamsByUser(userID))
+	teams, err := s.teams.List(pluginapi.FilterTeamsByUser(userID))
 	if err != nil {
 		return nil, err
 	}
