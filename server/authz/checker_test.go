@@ -111,6 +111,7 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{name: "reset password cross-team user", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
 		{name: "reset password peer organizer", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "organizer-c"}, wantError: ErrProtectedTarget},
 		{name: "edit profile cross-team user", actorID: "organizer-a", op: OpEditProfile, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
+		{name: "edit profile peer organizer", actorID: "organizer-a", op: OpEditProfile, target: Target{UserID: "organizer-c"}, wantError: ErrProtectedTarget},
 		{name: "add team member cross-team user still allowed", actorID: "organizer-a", op: OpAddTeamMember, target: Target{UserID: "parent-1", TeamID: "team-soccer"}},
 		{name: "reset password sysadmin", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "sysadmin"}, wantError: ErrProtectedTarget},
 		{name: "reset password self", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "organizer-a"}, wantError: ErrProtectedTarget},
@@ -122,6 +123,8 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{name: "deactivate globally disabled", actorID: "organizer-a", op: OpDeactivateGlobal, target: Target{UserID: "child-1"}, wantError: ErrPermissionDenied},
 		{name: "deactivate globally cross-team user", actorID: "organizer-c", op: OpDeactivateGlobal, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
 		{name: "deactivate globally scoped only", actorID: "organizer-b", op: OpDeactivateGlobal, target: Target{UserID: "child-1"}},
+		{name: "reactivate cross-team user", actorID: "organizer-c", op: OpReactivate, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
+		{name: "reactivate scoped only", actorID: "organizer-b", op: OpReactivate, target: Target{UserID: "child-1"}},
 		{name: "audit non-sysadmin", actorID: "organizer-a", op: OpViewAudit, wantError: ErrForbidden},
 	}
 

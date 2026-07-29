@@ -42,6 +42,13 @@ func TestParseScopeConfigMissingPermissionsDefaults(t *testing.T) {
 	assert.Equal(t, DefaultRateLimits(), cfg.Organizers[0].RateLimits)
 }
 
+func TestParseScopeConfigEmptyRateLimitsObjectDefaults(t *testing.T) {
+	raw := `{"version":1,"organizers":[{"user_id":"u1","rate_limits":{}}]}`
+	cfg, err := ParseScopeConfig(raw)
+	require.NoError(t, err)
+	assert.Equal(t, DefaultRateLimits(), cfg.Organizers[0].RateLimits)
+}
+
 func TestHasChannelWildcardRequiresOpen(t *testing.T) {
 	org := &Organizer{
 		Channels:           []ChannelRef{{ID: "explicit-private", TeamID: "t1"}},

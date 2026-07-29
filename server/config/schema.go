@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -129,7 +130,9 @@ func ParseScopeConfig(raw string) (*ScopeConfig, error) {
 			return nil, fmt.Errorf("invalid permissions for organizer %s: %w", org.UserID, err)
 		}
 
-		if len(rawOrg.RateLimits) == 0 {
+		// Absent, null, or {} all mean "use defaults". Explicit zeros would mean
+		// unlimited on callers that treat limit<=0 as allow (pre-Effective*).
+		if isAbsentOrEmptyObject(rawOrg.RateLimits) {
 			org.RateLimits = DefaultRateLimits()
 		} else if err := json.Unmarshal(rawOrg.RateLimits, &org.RateLimits); err != nil {
 			return nil, fmt.Errorf("invalid rate_limits for organizer %s: %w", org.UserID, err)
@@ -139,6 +142,12 @@ func ParseScopeConfig(raw string) (*ScopeConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// isAbsentOrEmptyObject reports whether raw is missing, JSON null, or {}.
+func isAbsentOrEmptyObject(raw json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(raw)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) || bytes.Equal(trimmed, []byte("{}"))
 }
 
 // FindOrganizer returns the organizer entry for a user ID.
