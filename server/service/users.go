@@ -72,7 +72,9 @@ func (s *UserService) CreateUser(req CreateUserRequest, emailDomain, siteURL str
 	}
 
 	cleanup := func() {
-		_ = s.client.User.UpdateActive(user.Id, false)
+		if err := s.client.User.UpdateActive(user.Id, false); err != nil {
+			s.client.Log.Warn("create-user cleanup UpdateActive failed", "user_id", user.Id, "error", err.Error())
+		}
 	}
 
 	if err := ApplyPushDefaults(s.client, user); err != nil {

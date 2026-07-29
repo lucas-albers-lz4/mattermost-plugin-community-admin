@@ -182,11 +182,7 @@ func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
 
 	teamID := r.URL.Query().Get("team_id")
 	term := r.URL.Query().Get("q")
-	_, perPage := parsePagination(r, 0, 50)
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	if page < 0 {
-		page = 0
-	}
+	page, perPage := parsePagination(r, 0, 50)
 
 	target := authz.Target{TeamID: teamID}
 	if err := checker.Authorize(orgCtx, authz.OpListUsers, target); err != nil {
@@ -207,7 +203,11 @@ func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]map[string]any, 0, len(users))
 	for _, u := range users {
-		teamIDsForUser, _ := p.userService.TeamIDsForUser(u.Id)
+		teamIDsForUser, err := p.userService.TeamIDsForUser(u.Id)
+		if err != nil {
+			p.API.LogError("TeamIDsForUser failed", "user_id", u.Id, "error", err.Error())
+			continue
+		}
 		if !checker.UserVisible(orgCtx, teamIDsForUser) {
 			continue
 		}

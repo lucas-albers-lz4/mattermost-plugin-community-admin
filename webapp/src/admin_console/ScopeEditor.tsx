@@ -206,9 +206,9 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
             };
         });
 
-        const allChannelsInTeams = allPublicChannels && resolvedChannels.length === 0
-            ? resolvedTeams.map((t) => t.id)
-            : [];
+        const allChannelsInTeams = allPublicChannels && resolvedChannels.length === 0 ?
+            resolvedTeams.map((t) => t.id) :
+            [];
 
         const next = {...cfg};
         next.organizers = next.organizers.filter((o) => o.user_id !== selectedUser.id);
@@ -379,6 +379,7 @@ const ScopeEditor: React.FC<PluginCustomSettingsComponentProps<string>> = (props
                         notifyChange(value);
                     } catch {
                         setJsonError('Invalid JSON — fix before saving plugin settings');
+
                         // Do not notifyChange invalid JSON (would wipe organizers server-side).
                     }
                 }}
