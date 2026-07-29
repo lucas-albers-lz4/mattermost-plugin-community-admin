@@ -590,16 +590,32 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	const maxBatchBytes = 1 << 20 // 1 MiB
+	r.Body = http.MaxBytesReader(w, r.Body, maxBatchBytes)
+
 	dryRun := r.URL.Query().Get("dry_run") == "true"
 	rows, err := service.ParseBatchCSV(r.Body)
 	if err != nil {
 		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
+	if len(rows) > service.MaxBatchRows {
+		p.writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("batch exceeds maximum of %d rows", service.MaxBatchRows),
+		})
+		return
+	}
 
-	results, err := p.batchService.Import(rows, orgCtx.Organizer, cfg, dryRun)
+	quota := func() (bool, error) {
+		return p.rateLimitService.CheckAndIncrement(actorID, "create_user", orgCtx.Organizer.RateLimits.EffectiveCreatesPerHour())
+	}
+	results, err := p.batchService.Import(rows, orgCtx.Organizer, cfg, dryRun, quota)
 	if err != nil {
-		p.writeError(w, err, http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, service.ErrBatchValidation) {
+			status = http.StatusBadRequest
+		}
+		p.writeError(w, err, status)
 		return
 	}
 	for _, res := range results {

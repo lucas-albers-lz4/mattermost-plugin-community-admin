@@ -2,12 +2,24 @@ package service
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
+	"github.com/mattermost/mattermost/server/public/model"
+
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 )
+
+const MaxBatchRows = 200
+
+// ErrBatchValidation marks client-fixable Import failures (HTTP 400).
+var ErrBatchValidation = errors.New("batch validation")
+
+func validationErrorf(format string, args ...any) error {
+	return fmt.Errorf("%w: %s", ErrBatchValidation, fmt.Sprintf(format, args...))
+}
 
 type BatchRow struct {
 	Username  string
@@ -21,9 +33,19 @@ type BatchRowResult struct {
 	Username   string `json:"username"`
 	Created    bool   `json:"created"`
 	Skipped    bool   `json:"skipped"`
+	SkipReason string `json:"skip_reason,omitempty"`
 	Error      string `json:"error,omitempty"`
 	Password   string `json:"password,omitempty"`
 	ParentText string `json:"parent_text,omitempty"`
+}
+
+// CreateQuota checks whether another create is allowed (rate limit).
+type CreateQuota func() (allowed bool, err error)
+
+// batchUsers is the UserService surface Import needs (allows stubs in tests).
+type batchUsers interface {
+	GetByUsername(username string) (*model.User, error)
+	CreateUser(req CreateUserRequest, emailDomain, siteURL string) (*CreateUserResult, error)
 }
 
 // ParseBatchCSV parses community-users CSV format.
@@ -43,7 +65,7 @@ func ParseBatchCSV(r io.Reader) ([]BatchRow, error) {
 	for i, h := range header {
 		col[strings.ToLower(strings.TrimSpace(h))] = i
 	}
-	for _, required := range []string{"username", "firstname", "lastname"} {
+	for _, required := range []string{"username", "firstname", "lastname", "team"} {
 		if _, ok := col[required]; !ok {
 			return nil, fmt.Errorf("missing required column: %s", required)
 		}
@@ -58,9 +80,7 @@ func ParseBatchCSV(r io.Reader) ([]BatchRow, error) {
 			Username:  strings.TrimSpace(rec[col["username"]]),
 			FirstName: strings.TrimSpace(rec[col["firstname"]]),
 			LastName:  strings.TrimSpace(rec[col["lastname"]]),
-		}
-		if idx, ok := col["team"]; ok && idx < len(rec) {
-			row.TeamName = strings.TrimSpace(rec[idx])
+			TeamName:  strings.TrimSpace(rec[col["team"]]),
 		}
 		if idx, ok := col["channels"]; ok && idx < len(rec) && strings.TrimSpace(rec[idx]) != "" {
 			for ch := range strings.SplitSeq(rec[idx], ";") {
@@ -77,7 +97,7 @@ func ParseBatchCSV(r io.Reader) ([]BatchRow, error) {
 
 // BatchImportService imports users scoped to organizer teams.
 type BatchImportService struct {
-	users   *UserService
+	users   batchUsers
 	members *MembershipService
 }
 
@@ -85,10 +105,25 @@ func NewBatchImportService(users *UserService, members *MembershipService) *Batc
 	return &BatchImportService{users: users, members: members}
 }
 
-func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg *config.ScopeConfig, dryRun bool) ([]BatchRowResult, error) {
+func buildTeamNameMap(org *config.Organizer) (map[string]string, error) {
 	teamNameToID := map[string]string{}
 	for _, t := range org.Teams {
+		if prev, ok := teamNameToID[t.Name]; ok && prev != t.ID {
+			return nil, validationErrorf("duplicate team name %q in organizer scope; use unique names or import via API with IDs", t.Name)
+		}
 		teamNameToID[t.Name] = t.ID
+	}
+	return teamNameToID, nil
+}
+
+func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg *config.ScopeConfig, dryRun bool, quota CreateQuota) ([]BatchRowResult, error) {
+	if len(rows) > MaxBatchRows {
+		return nil, validationErrorf("batch exceeds maximum of %d rows", MaxBatchRows)
+	}
+
+	teamNameToID, err := buildTeamNameMap(org)
+	if err != nil {
+		return nil, err
 	}
 
 	var results []BatchRowResult
@@ -104,30 +139,31 @@ func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg 
 			results = append(results, res)
 			continue
 		}
+		if row.TeamName == "" {
+			res.Error = "team is required"
+			results = append(results, res)
+			continue
+		}
 
-		var teamID string
-		if row.TeamName != "" {
-			var ok bool
-			teamID, ok = teamNameToID[row.TeamName]
-			if !ok {
-				res.Error = fmt.Sprintf("team %q not in organizer scope", row.TeamName)
-				results = append(results, res)
-				continue
-			}
+		teamID, ok := teamNameToID[row.TeamName]
+		if !ok {
+			res.Error = fmt.Sprintf("team %q not in organizer scope", row.TeamName)
+			results = append(results, res)
+			continue
 		}
 
 		if dryRun {
 			res.Skipped = true
+			res.SkipReason = "dry_run"
 			results = append(results, res)
 			continue
 		}
 
 		existing, err := s.users.GetByUsername(row.Username)
 		if err == nil && existing != nil {
+			// Do not mutate membership for existing users — that bypasses authz/protected checks.
 			res.Skipped = true
-			if teamID != "" {
-				_ = s.members.AddTeamMember(teamID, existing.Id)
-			}
+			res.SkipReason = "user already exists (membership not modified; use membership API)"
 			results = append(results, res)
 			continue
 		}
@@ -155,12 +191,13 @@ func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg 
 				for _, tid := range org.AllChannelsInTeams {
 					for _, t := range org.Teams {
 						if t.Name == parts[0] && t.ID == tid {
-							// wildcard — channel ID resolved at runtime would need API lookup;
-							// skip unresolved wildcard channels in batch for safety
 							res.Error = fmt.Sprintf("channel %q requires explicit scope entry for batch import", spec)
 							break
 						}
 					}
+				}
+				if res.Error == "" {
+					res.Error = fmt.Sprintf("channel %q not in organizer scope", spec)
 				}
 			}
 		}
@@ -169,15 +206,23 @@ func (s *BatchImportService) Import(rows []BatchRow, org *config.Organizer, cfg 
 			continue
 		}
 
-		teamIDs := []string{}
-		if teamID != "" {
-			teamIDs = append(teamIDs, teamID)
+		if quota != nil {
+			allowed, qerr := quota()
+			if qerr != nil {
+				return results, qerr
+			}
+			if !allowed {
+				res.Error = "rate limit exceeded"
+				results = append(results, res)
+				continue
+			}
 		}
+
 		created, err := s.users.CreateUser(CreateUserRequest{
 			Username:   row.Username,
 			FirstName:  row.FirstName,
 			LastName:   row.LastName,
-			TeamIDs:    teamIDs,
+			TeamIDs:    []string{teamID},
 			ChannelIDs: channelIDs,
 		}, cfg.EmailDomain, cfg.SiteURL)
 		if err != nil {
