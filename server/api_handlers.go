@@ -56,6 +56,12 @@ func (p *Plugin) actorID(r *http.Request) string {
 	return r.Header.Get("Mattermost-User-Id")
 }
 
+const maxJSONBodyBytes = 64 << 10 // 64 KiB
+
+func limitRequestBody(w http.ResponseWriter, r *http.Request, maxBytes int64) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+}
+
 func (p *Plugin) organizerContext(actorID string) (*authz.OrganizerContext, error) {
 	cfg := p.getScopeConfig()
 	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
@@ -235,6 +241,7 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body createUserBody
+	limitRequestBody(w, r, maxJSONBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
@@ -319,6 +326,7 @@ func (p *Plugin) handlePatchUser(w http.ResponseWriter, r *http.Request) {
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`
 	}
+	limitRequestBody(w, r, maxJSONBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
@@ -493,16 +501,17 @@ func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) 
 	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	channelID := mux.Vars(r)["channelId"]
-	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
-	if err != nil {
-		p.writeError(w, err, http.StatusBadRequest)
-		return
-	}
 	cfg := p.getScopeConfig()
 	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
 	orgCtx, err := checker.ResolveOrganizer(actorID)
 	if err != nil {
 		p.writeError(w, err, http.StatusForbidden)
+		return
+	}
+	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
+	if err != nil {
+		// Same status as out-of-scope to avoid channel-ID existence probes.
+		p.writeError(w, authz.ErrChannelOutOfScope, http.StatusForbidden)
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpAddChannelMember, authz.Target{UserID: userID, ChannelID: channelID, TeamID: chTeam, ChannelIsOpen: isOpen}); err != nil {
@@ -525,16 +534,16 @@ func (p *Plugin) handleRemoveChannelMember(w http.ResponseWriter, r *http.Reques
 	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	channelID := mux.Vars(r)["channelId"]
-	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
-	if err != nil {
-		p.writeError(w, err, http.StatusBadRequest)
-		return
-	}
 	cfg := p.getScopeConfig()
 	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
 	orgCtx, err := checker.ResolveOrganizer(actorID)
 	if err != nil {
 		p.writeError(w, err, http.StatusForbidden)
+		return
+	}
+	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
+	if err != nil {
+		p.writeError(w, authz.ErrChannelOutOfScope, http.StatusForbidden)
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpRemoveChannelMember, authz.Target{UserID: userID, ChannelID: channelID, TeamID: chTeam, ChannelIsOpen: isOpen}); err != nil {
@@ -804,6 +813,7 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 		TeamNames         []string `json:"team_names"`
 		ChannelSpecs      []string `json:"channel_specs"`
 	}
+	limitRequestBody(w, r, maxJSONBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
