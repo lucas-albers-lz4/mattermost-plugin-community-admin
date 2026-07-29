@@ -32,7 +32,8 @@ Constraints:
 - 30s subprocess timeout
 - No shell interpolation (direct `exec.Command` args)
 - Passwords are never written to audit logs or KV store
-- mmctl stderr is logged server-side and not returned to API clients
+- mmctl stderr/stdout is included in the server-side error (and logged via writeError for 5xx);
+  clients receive a generic internal error
 
 ## Authorization model
 

@@ -31,15 +31,21 @@ func ValidateUsername(username string) error {
 
 // GeneratePassword creates a 16-character password meeting community policy.
 func GeneratePassword() (string, error) {
-	required := []string{
-		randomChar(upperChars),
-		randomChar(lowerChars),
-		randomChar(digitChars),
-		randomChar(symbolChars),
+	required := make([]string, 0, 16)
+	for _, charset := range []string{upperChars, lowerChars, digitChars, symbolChars} {
+		ch, err := randomChar(charset)
+		if err != nil {
+			return "", err
+		}
+		required = append(required, ch)
 	}
 	all := upperChars + lowerChars + digitChars + symbolChars
 	for range 12 {
-		required = append(required, randomChar(all))
+		ch, err := randomChar(all)
+		if err != nil {
+			return "", err
+		}
+		required = append(required, ch)
 	}
 	if err := cryptoShuffle(required); err != nil {
 		return "", err
@@ -68,12 +74,12 @@ func cryptoShuffle(items []string) error {
 	return nil
 }
 
-func randomChar(charset string) string {
+func randomChar(charset string) (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 	if err != nil {
-		return string(charset[0])
+		return "", fmt.Errorf("crypto/rand: %w", err)
 	}
-	return string(charset[n.Int64()])
+	return string(charset[n.Int64()]), nil
 }
 
 // ParentTextLine formats the SMS handoff line for parents.

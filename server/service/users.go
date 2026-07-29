@@ -138,8 +138,9 @@ func (s *UserService) ResetPassword(username, siteURL string) (*ResetPasswordRes
 
 	// Pass bcrypt hash via --hashed so plaintext never appears in process argv /proc/cmdline.
 	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", hashed, "--hashed") //nolint:gosec // controlled local mmctl; see SECURITY.md
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("mmctl change-password failed: %w", err)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("mmctl change-password failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 
 	return &ResetPasswordResult{
