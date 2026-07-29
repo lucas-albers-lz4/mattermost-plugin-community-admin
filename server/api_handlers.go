@@ -262,7 +262,7 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ok, err := p.rateLimitService.CheckAndIncrement(actorID, "create_user", orgCtx.Organizer.RateLimits.CreatesPerHour)
+	ok, err := p.rateLimitService.CheckAndIncrement(actorID, "create_user", orgCtx.Organizer.RateLimits.EffectiveCreatesPerHour())
 	if err != nil {
 		p.writeError(w, err, http.StatusInternalServerError)
 		return
@@ -353,7 +353,7 @@ func (p *Plugin) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := p.rateLimitService.CheckAndIncrement(actorID, "reset_password", orgCtx.Organizer.RateLimits.PasswordResetsPerHour)
+	ok, err := p.rateLimitService.CheckAndIncrement(actorID, "reset_password", orgCtx.Organizer.RateLimits.EffectivePasswordResetsPerHour())
 	if err != nil {
 		p.writeError(w, err, http.StatusInternalServerError)
 		return
