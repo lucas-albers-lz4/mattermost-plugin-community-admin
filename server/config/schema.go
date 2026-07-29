@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -71,15 +72,39 @@ func DefaultRateLimits() RateLimits {
 	}
 }
 
+type organizerJSON struct {
+	UserID             string          `json:"user_id"`
+	DisplayUsername    string          `json:"display_username"`
+	Teams              []TeamRef       `json:"teams"`
+	Channels           []ChannelRef    `json:"channels"`
+	AllChannelsInTeams []string        `json:"all_channels_in_teams"`
+	Permissions        json.RawMessage `json:"permissions"`
+	RateLimits         json.RawMessage `json:"rate_limits"`
+}
+
+type scopeConfigJSON struct {
+	Version     int             `json:"version"`
+	EmailDomain string          `json:"email_domain"`
+	SiteURL     string          `json:"site_url"`
+	Organizers  []organizerJSON `json:"organizers"`
+}
+
 // ParseScopeConfig unmarshals and validates scope configuration JSON.
 func ParseScopeConfig(raw string) (*ScopeConfig, error) {
 	if raw == "" {
 		return &ScopeConfig{Version: CurrentVersion, Organizers: []Organizer{}}, nil
 	}
 
-	var cfg ScopeConfig
-	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+	var rawCfg scopeConfigJSON
+	if err := json.Unmarshal([]byte(raw), &rawCfg); err != nil {
 		return nil, fmt.Errorf("invalid scope config JSON: %w", err)
+	}
+
+	cfg := &ScopeConfig{
+		Version:     rawCfg.Version,
+		EmailDomain: rawCfg.EmailDomain,
+		SiteURL:     rawCfg.SiteURL,
+		Organizers:  make([]Organizer, 0, len(rawCfg.Organizers)),
 	}
 
 	if cfg.Version == 0 {
@@ -89,20 +114,47 @@ func ParseScopeConfig(raw string) (*ScopeConfig, error) {
 		cfg.EmailDomain = "community.local"
 	}
 
-	for i := range cfg.Organizers {
-		if cfg.Organizers[i].Permissions == (Permissions{}) {
-			cfg.Organizers[i].Permissions = DefaultPermissions()
+	for _, rawOrg := range rawCfg.Organizers {
+		org := Organizer{
+			UserID:             rawOrg.UserID,
+			DisplayUsername:    rawOrg.DisplayUsername,
+			Teams:              rawOrg.Teams,
+			Channels:           rawOrg.Channels,
+			AllChannelsInTeams: rawOrg.AllChannelsInTeams,
 		}
-		if cfg.Organizers[i].RateLimits == (RateLimits{}) {
-			cfg.Organizers[i].RateLimits = DefaultRateLimits()
+
+		// Only default when the key is absent — explicit all-false must stick.
+		if len(rawOrg.Permissions) == 0 {
+			org.Permissions = DefaultPermissions()
+		} else if err := json.Unmarshal(rawOrg.Permissions, &org.Permissions); err != nil {
+			return nil, fmt.Errorf("invalid permissions for organizer %s: %w", org.UserID, err)
 		}
+
+		// Absent, null, or {} all mean "use defaults". Explicit zeros would mean
+		// unlimited on callers that treat limit<=0 as allow (pre-Effective*).
+		if isAbsentOrEmptyObject(rawOrg.RateLimits) {
+			org.RateLimits = DefaultRateLimits()
+		} else if err := json.Unmarshal(rawOrg.RateLimits, &org.RateLimits); err != nil {
+			return nil, fmt.Errorf("invalid rate_limits for organizer %s: %w", org.UserID, err)
+		}
+
+		cfg.Organizers = append(cfg.Organizers, org)
 	}
 
-	return &cfg, nil
+	return cfg, nil
+}
+
+// isAbsentOrEmptyObject reports whether raw is missing, JSON null, or {}.
+func isAbsentOrEmptyObject(raw json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(raw)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) || bytes.Equal(trimmed, []byte("{}"))
 }
 
 // FindOrganizer returns the organizer entry for a user ID.
 func (c *ScopeConfig) FindOrganizer(userID string) *Organizer {
+	if c == nil || userID == "" {
+		return nil
+	}
 	for i := range c.Organizers {
 		if c.Organizers[i].UserID == userID {
 			return &c.Organizers[i]
@@ -130,12 +182,17 @@ func (o *Organizer) HasTeam(teamID string) bool {
 	return false
 }
 
-// HasChannel returns true if channelID is allowed (explicit or wildcard team).
-func (o *Organizer) HasChannel(channelID, teamID string) bool {
+// HasChannel returns true if channelID is allowed.
+// Explicit channels[] entries allow any channel type. Wildcard AllChannelsInTeams
+// only matches when channelIsOpen is true (public channels).
+func (o *Organizer) HasChannel(channelID, teamID string, channelIsOpen bool) bool {
 	for _, ch := range o.Channels {
 		if ch.ID == channelID {
 			return true
 		}
+	}
+	if !channelIsOpen {
+		return false
 	}
 	return slices.Contains(o.AllChannelsInTeams, teamID)
 }

@@ -73,7 +73,7 @@ func TestAdminDTOs(t *testing.T) {
 
 func TestIsSystemAdminGateMatchesAuthz(t *testing.T) {
 	t.Parallel()
-	// Document the role string the admin list handlers rely on.
 	assert.True(t, authz.IsSystemAdmin("system_user system_admin"))
 	assert.False(t, authz.IsSystemAdmin("system_user"))
+	assert.False(t, authz.IsSystemAdmin("not_system_admin"))
 }

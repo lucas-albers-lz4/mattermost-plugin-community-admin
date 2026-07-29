@@ -36,7 +36,10 @@ Constraints:
 
 - Organizers are configured by **user ID** in `ScopeConfig` (System Console).
 - Each organizer has scoped `teams`, `channels`, and optional `all_channels_in_teams`.
-- Protected targets (self-reset, system admins) are rejected server-side.
+- `all_channels_in_teams` grants access to **public** channels in those teams only. Private channels require an explicit `channels[]` entry.
+- Protected targets (self, other organizers, bots, system admins) are rejected server-side.
+- **Account-wide** ops (reset password, edit profile, deactivate/reactivate) require the target's teams to be a subset of the organizer's scope.
+- **Membership** ops (add/remove team or channel) and user listing use intersection: sharing any scoped team is enough.
 - Rate limiting applies to user creation (configurable threshold).
 
 ## Web UI vs mobile
