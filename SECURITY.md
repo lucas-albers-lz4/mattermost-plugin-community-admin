@@ -12,9 +12,12 @@ container (see [docs/design.md](docs/design.md)):
 
 - Fixed binary path: `/mattermost/bin/mmctl`
 - Username validated before exec
-- Password generated server-side only
+- Password generated server-side only; process argv receives a bcrypt hash with `--hashed`
+  (plaintext never appears in `/proc/*/cmdline`)
 - 30 second timeout
 - Passwords are never written to audit logs or KV store
+- Internal/mmctl errors include mmctl output server-side and are not returned to organizers
+  (5xx responses are redacted to a generic internal error)
 
 ## Reporting issues
 

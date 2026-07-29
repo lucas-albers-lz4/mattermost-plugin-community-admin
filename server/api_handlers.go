@@ -43,6 +43,11 @@ func (p *Plugin) writeError(w http.ResponseWriter, err error, fallbackStatus int
 		if fallbackStatus == 0 {
 			fallbackStatus = http.StatusInternalServerError
 		}
+		if fallbackStatus >= http.StatusInternalServerError {
+			p.API.LogError("plugin request failed", "error", err.Error(), "status", fallbackStatus)
+			p.writeJSON(w, fallbackStatus, map[string]string{"error": "internal error"})
+			return
+		}
 		p.writeJSON(w, fallbackStatus, map[string]string{"error": err.Error()})
 	}
 }

@@ -4,10 +4,11 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	mrand "math/rand"
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -30,28 +31,55 @@ func ValidateUsername(username string) error {
 
 // GeneratePassword creates a 16-character password meeting community policy.
 func GeneratePassword() (string, error) {
-	required := []string{
-		randomChar(upperChars),
-		randomChar(lowerChars),
-		randomChar(digitChars),
-		randomChar(symbolChars),
+	required := make([]string, 0, 16)
+	for _, charset := range []string{upperChars, lowerChars, digitChars, symbolChars} {
+		ch, err := randomChar(charset)
+		if err != nil {
+			return "", err
+		}
+		required = append(required, ch)
 	}
 	all := upperChars + lowerChars + digitChars + symbolChars
 	for range 12 {
-		required = append(required, randomChar(all))
+		ch, err := randomChar(all)
+		if err != nil {
+			return "", err
+		}
+		required = append(required, ch)
 	}
-	mrand.Shuffle(len(required), func(i, j int) {
-		required[i], required[j] = required[j], required[i]
-	})
+	if err := cryptoShuffle(required); err != nil {
+		return "", err
+	}
 	return strings.Join(required, ""), nil
 }
 
-func randomChar(charset string) string {
+// HashPassword returns a bcrypt hash suitable for mmctl --hashed.
+func HashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+func cryptoShuffle(items []string) error {
+	for i := len(items) - 1; i > 0; i-- {
+		jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return err
+		}
+		j := int(jBig.Int64())
+		items[i], items[j] = items[j], items[i]
+	}
+	return nil
+}
+
+func randomChar(charset string) (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 	if err != nil {
-		return string(charset[0])
+		return "", fmt.Errorf("crypto/rand: %w", err)
 	}
-	return string(charset[n.Int64()])
+	return string(charset[n.Int64()]), nil
 }
 
 // ParentTextLine formats the SMS handoff line for parents.
