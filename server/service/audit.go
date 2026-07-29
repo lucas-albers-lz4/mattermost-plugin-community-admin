@@ -89,6 +89,7 @@ func (s *AuditService) Record(entry AuditEntry) error {
 		return index, nil
 	})
 	if err != nil {
+		_ = s.kv.Delete(key)
 		return err
 	}
 	for _, id := range toDelete {
