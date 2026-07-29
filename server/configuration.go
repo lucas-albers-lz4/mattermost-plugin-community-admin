@@ -10,14 +10,27 @@ type configuration struct {
 	ScopeConfig string `json:"ScopeConfig"`
 }
 
-func (p *Plugin) getScopeConfig() *config.ScopeConfig {
-	cfg := p.getConfiguration()
-	parsed, err := config.ParseScopeConfig(cfg.ScopeConfig)
+// applyParsedScopeConfig returns a newly parsed config, or current on parse
+// failure when current is non-nil (last-known-good). On first-load failure it
+// returns an empty organizer list.
+func applyParsedScopeConfig(current *config.ScopeConfig, raw string) (*config.ScopeConfig, error) {
+	parsed, err := config.ParseScopeConfig(raw)
 	if err != nil {
-		p.API.LogError("invalid scope config", "error", err.Error())
-		return &config.ScopeConfig{Version: config.CurrentVersion, Organizers: []config.Organizer{}}
+		if current != nil {
+			return current, err
+		}
+		return &config.ScopeConfig{Version: config.CurrentVersion, Organizers: []config.Organizer{}}, err
 	}
-	return parsed
+	return parsed, nil
+}
+
+func (p *Plugin) getScopeConfig() *config.ScopeConfig {
+	p.configurationLock.RLock()
+	defer p.configurationLock.RUnlock()
+	if p.parsedScopeConfig != nil {
+		return p.parsedScopeConfig
+	}
+	return &config.ScopeConfig{Version: config.CurrentVersion, Organizers: []config.Organizer{}}
 }
 
 func (p *Plugin) getConfiguration() *configuration {
@@ -35,6 +48,16 @@ func (p *Plugin) setConfiguration(configuration *configuration) {
 	p.configurationLock.Lock()
 	defer p.configurationLock.Unlock()
 	p.configuration = configuration
+
+	raw := ""
+	if configuration != nil {
+		raw = configuration.ScopeConfig
+	}
+	next, err := applyParsedScopeConfig(p.parsedScopeConfig, raw)
+	if err != nil && p.API != nil {
+		p.API.LogError("invalid scope config; keeping previous parsed config if any", "error", err.Error())
+	}
+	p.parsedScopeConfig = next
 }
 
 func (p *Plugin) loadConfiguration() error {
