@@ -72,6 +72,30 @@ func DefaultRateLimits() RateLimits {
 	}
 }
 
+// EffectiveCreatesPerHour returns the enforceable create limit.
+// 0 means "use default"; negative means unlimited.
+func (r RateLimits) EffectiveCreatesPerHour() int {
+	if r.CreatesPerHour < 0 {
+		return -1
+	}
+	if r.CreatesPerHour == 0 {
+		return DefaultRateLimits().CreatesPerHour
+	}
+	return r.CreatesPerHour
+}
+
+// EffectivePasswordResetsPerHour returns the enforceable password-reset limit.
+// 0 means "use default"; negative means unlimited.
+func (r RateLimits) EffectivePasswordResetsPerHour() int {
+	if r.PasswordResetsPerHour < 0 {
+		return -1
+	}
+	if r.PasswordResetsPerHour == 0 {
+		return DefaultRateLimits().PasswordResetsPerHour
+	}
+	return r.PasswordResetsPerHour
+}
+
 type organizerJSON struct {
 	UserID             string          `json:"user_id"`
 	DisplayUsername    string          `json:"display_username"`

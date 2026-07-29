@@ -58,3 +58,10 @@ func TestHasChannelWildcardRequiresOpen(t *testing.T) {
 	assert.True(t, org.HasChannel("any-public", "t1", true))
 	assert.False(t, org.HasChannel("any-private", "t1", false))
 }
+
+func TestEffectiveRateLimits(t *testing.T) {
+	assert.Equal(t, 20, RateLimits{}.EffectiveCreatesPerHour())
+	assert.Equal(t, 10, RateLimits{}.EffectivePasswordResetsPerHour())
+	assert.Equal(t, -1, RateLimits{CreatesPerHour: -1}.EffectiveCreatesPerHour())
+	assert.Equal(t, 7, RateLimits{CreatesPerHour: 7}.EffectiveCreatesPerHour())
+}
