@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/stretchr/testify/assert"
@@ -171,4 +172,32 @@ func TestAuditRecordConcurrent(t *testing.T) {
 	entries, err := svc.List(500)
 	require.NoError(t, err)
 	assert.Len(t, entries, n)
+}
+
+func TestAuditRecordPrunesExpired(t *testing.T) {
+	kv := newMemKV()
+	svc := newAuditServiceWithKV(kv)
+
+	oldID := "expired-1"
+	oldEntry := AuditEntry{
+		ID: oldID, TS: time.Now().UTC().Add(-auditRetention - time.Hour).Format(time.RFC3339),
+		ActorID: "a", Action: "create_user",
+	}
+	data, err := json.Marshal(oldEntry)
+	require.NoError(t, err)
+	_, err = kv.Set(auditKeyPrefix+oldID, data)
+	require.NoError(t, err)
+	_, err = kv.Set(auditIndexKey, []string{oldID})
+	require.NoError(t, err)
+
+	require.NoError(t, svc.Record(AuditEntry{ActorID: "a", Action: "create_user", TargetID: "fresh"}))
+
+	var index []string
+	require.NoError(t, kv.Get(auditIndexKey, &index))
+	require.Len(t, index, 1)
+	assert.NotEqual(t, oldID, index[0])
+
+	var gone AuditEntry
+	require.NoError(t, kv.Get(auditKeyPrefix+oldID, &gone))
+	assert.Empty(t, gone.ID)
 }
