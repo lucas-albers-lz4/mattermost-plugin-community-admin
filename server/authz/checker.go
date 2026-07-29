@@ -41,12 +41,12 @@ func (c *Checker) ResolveOrganizer(actorID string) (*OrganizerContext, error) {
 	return &OrganizerContext{ActorID: actorID, Organizer: org, Config: c.cfg}, nil
 }
 
-// IsSystemAdmin returns true if actor has manage_system via roles string.
+// IsSystemAdmin returns true if roles include the exact system_admin token.
 func IsSystemAdmin(roles string) bool {
-	return strings.Contains(roles, "system_admin")
+	return slices.Contains(strings.Fields(roles), "system_admin")
 }
 
-func isProtected(actorID string, target *UserInfo) bool {
+func isProtected(cfg *config.ScopeConfig, actorID string, target *UserInfo) bool {
 	if target == nil {
 		return false
 	}
@@ -60,6 +60,10 @@ func isProtected(actorID string, target *UserInfo) bool {
 		return true
 	}
 	if target.Username == "calls" {
+		return true
+	}
+	// Peer organizers are protected to prevent delegated-admin takeover.
+	if cfg != nil && cfg.FindOrganizer(target.ID) != nil {
 		return true
 	}
 	return false
@@ -117,8 +121,8 @@ func (c *Checker) Authorize(ctx *OrganizerContext, op Operation, target Target) 
 		if target.TeamID != "" && !org.HasTeam(target.TeamID) {
 			return ErrTeamOutOfScope
 		}
-		for _, chTeam := range []string{target.TeamID} {
-			if target.ChannelID != "" && chTeam != "" && !org.HasChannel(target.ChannelID, chTeam) {
+		if target.ChannelID != "" {
+			if target.TeamID == "" || !org.HasChannel(target.ChannelID, target.TeamID, target.ChannelIsOpen) {
 				return ErrChannelOutOfScope
 			}
 		}
@@ -134,13 +138,13 @@ func (c *Checker) Authorize(ctx *OrganizerContext, op Operation, target Target) 
 		if !org.Permissions.EditProfile {
 			return ErrPermissionDenied
 		}
-		return c.authorizeTargetUser(ctx, target.UserID)
+		return c.authorizeAccountWideTarget(ctx, target.UserID)
 
 	case OpResetPassword:
 		if !org.Permissions.ResetPassword {
 			return ErrPermissionDenied
 		}
-		return c.authorizeTargetUser(ctx, target.UserID)
+		return c.authorizeAccountWideTarget(ctx, target.UserID)
 
 	case OpAddTeamMember, OpRemoveTeamMember:
 		if op == OpRemoveTeamMember {
@@ -154,7 +158,7 @@ func (c *Checker) Authorize(ctx *OrganizerContext, op Operation, target Target) 
 			return ErrTeamOutOfScope
 		}
 		if target.UserID != "" {
-			return c.authorizeTargetUser(ctx, target.UserID)
+			return c.authorizeTargetUser(ctx, target.UserID, false)
 		}
 		return nil
 
@@ -162,11 +166,11 @@ func (c *Checker) Authorize(ctx *OrganizerContext, op Operation, target Target) 
 		if !org.Permissions.ManageMembership {
 			return ErrPermissionDenied
 		}
-		if !org.HasChannel(target.ChannelID, target.TeamID) {
+		if !org.HasChannel(target.ChannelID, target.TeamID, target.ChannelIsOpen) {
 			return ErrChannelOutOfScope
 		}
 		if target.UserID != "" {
-			return c.authorizeTargetUser(ctx, target.UserID)
+			return c.authorizeTargetUser(ctx, target.UserID, false)
 		}
 		return nil
 
@@ -174,27 +178,19 @@ func (c *Checker) Authorize(ctx *OrganizerContext, op Operation, target Target) 
 		if !org.Permissions.DeactivateGlobally {
 			return ErrPermissionDenied
 		}
-		targetUser, err := c.lookup.GetUserInfo(target.UserID)
-		if err != nil {
-			return ErrUserOutOfScope
-		}
-		if isProtected(ctx.ActorID, targetUser) {
-			return ErrProtectedTarget
-		}
-		if !userInOrganizerTeams(org, targetUser.TeamIDs) {
-			return ErrUserOutOfScope
-		}
-		if !allTeamsSubset(org, targetUser.TeamIDs) {
-			return fmt.Errorf("%w: user belongs to teams outside organizer scope", ErrForbidden)
-		}
-		return nil
+		return c.authorizeAccountWideTarget(ctx, target.UserID)
 
 	default:
 		return ErrForbidden
 	}
 }
 
-func (c *Checker) authorizeTargetUser(ctx *OrganizerContext, targetUserID string) error {
+// authorizeAccountWideTarget requires intersection + allTeamsSubset (password, profile, deactivate).
+func (c *Checker) authorizeAccountWideTarget(ctx *OrganizerContext, targetUserID string) error {
+	return c.authorizeTargetUser(ctx, targetUserID, true)
+}
+
+func (c *Checker) authorizeTargetUser(ctx *OrganizerContext, targetUserID string, requireAllTeamsSubset bool) error {
 	if targetUserID == "" {
 		return ErrUserOutOfScope
 	}
@@ -202,16 +198,19 @@ func (c *Checker) authorizeTargetUser(ctx *OrganizerContext, targetUserID string
 	if err != nil {
 		return ErrUserOutOfScope
 	}
-	if isProtected(ctx.ActorID, targetUser) {
+	if isProtected(ctx.Config, ctx.ActorID, targetUser) {
 		return ErrProtectedTarget
 	}
 	if !userInOrganizerTeams(ctx.Organizer, targetUser.TeamIDs) {
 		return ErrUserOutOfScope
 	}
+	if requireAllTeamsSubset && !allTeamsSubset(ctx.Organizer, targetUser.TeamIDs) {
+		return fmt.Errorf("%w: user belongs to teams outside organizer scope", ErrForbidden)
+	}
 	return nil
 }
 
-// UserVisible returns true if user is visible in organizer scope (member of scoped team).
+// UserVisible returns true if user is visible in organizer scope (member of any scoped team).
 func (c *Checker) UserVisible(ctx *OrganizerContext, userTeamIDs []string) bool {
 	return userInOrganizerTeams(ctx.Organizer, userTeamIDs)
 }

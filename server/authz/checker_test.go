@@ -108,10 +108,17 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{name: "create user in scope", actorID: "organizer-a", op: OpCreateUser, target: Target{TeamID: "team-soccer"}},
 		{name: "create user out of scope team", actorID: "organizer-a", op: OpCreateUser, target: Target{TeamID: "team-parents"}, wantError: ErrTeamOutOfScope},
 		{name: "reset password scoped user", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "child-1"}},
+		{name: "reset password cross-team user", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
+		{name: "reset password peer organizer", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "organizer-c"}, wantError: ErrProtectedTarget},
+		{name: "edit profile cross-team user", actorID: "organizer-a", op: OpEditProfile, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
+		{name: "add team member cross-team user still allowed", actorID: "organizer-a", op: OpAddTeamMember, target: Target{UserID: "parent-1", TeamID: "team-soccer"}},
 		{name: "reset password sysadmin", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "sysadmin"}, wantError: ErrProtectedTarget},
 		{name: "reset password self", actorID: "organizer-a", op: OpResetPassword, target: Target{UserID: "organizer-a"}, wantError: ErrProtectedTarget},
 		{name: "add team member in scope", actorID: "organizer-a", op: OpAddTeamMember, target: Target{UserID: "child-1", TeamID: "team-soccer"}},
 		{name: "add team member wrong team", actorID: "organizer-a", op: OpAddTeamMember, target: Target{UserID: "child-1", TeamID: "team-parents"}, wantError: ErrTeamOutOfScope},
+		{name: "wildcard private channel denied", actorID: "organizer-b", op: OpAddChannelMember, target: Target{UserID: "child-1", ChannelID: "chan-private", TeamID: "team-soccer", ChannelIsOpen: false}, wantError: ErrChannelOutOfScope},
+		{name: "wildcard public channel allowed", actorID: "organizer-b", op: OpAddChannelMember, target: Target{UserID: "child-1", ChannelID: "chan-public", TeamID: "team-soccer", ChannelIsOpen: true}},
+		{name: "explicit channel allows private", actorID: "organizer-a", op: OpAddChannelMember, target: Target{UserID: "child-1", ChannelID: "chan-chat", TeamID: "team-soccer", ChannelIsOpen: false}},
 		{name: "deactivate globally disabled", actorID: "organizer-a", op: OpDeactivateGlobal, target: Target{UserID: "child-1"}, wantError: ErrPermissionDenied},
 		{name: "deactivate globally cross-team user", actorID: "organizer-c", op: OpDeactivateGlobal, target: Target{UserID: "parent-1"}, wantError: ErrForbidden},
 		{name: "deactivate globally scoped only", actorID: "organizer-b", op: OpDeactivateGlobal, target: Target{UserID: "child-1"}},
@@ -158,4 +165,20 @@ func TestAuditSysadmin(t *testing.T) {
 	ctx, err := checker.ResolveOrganizer("sysadmin")
 	require.NoError(t, err)
 	assert.NoError(t, checker.Authorize(ctx, OpViewAudit, Target{}))
+}
+
+func TestIsSystemAdminExactToken(t *testing.T) {
+	assert.True(t, IsSystemAdmin("system_user system_admin"))
+	assert.False(t, IsSystemAdmin("system_user"))
+	assert.False(t, IsSystemAdmin("not_system_admin"))
+	assert.False(t, IsSystemAdmin("system_admin_extra"))
+}
+
+func TestUserVisibleIntersection(t *testing.T) {
+	cfg := testConfig()
+	checker := NewChecker(cfg, testLookup())
+	ctx, err := checker.ResolveOrganizer("organizer-a")
+	require.NoError(t, err)
+	assert.True(t, checker.UserVisible(ctx, []string{"team-soccer", "team-parents"}))
+	assert.False(t, checker.UserVisible(ctx, []string{"team-parents"}))
 }

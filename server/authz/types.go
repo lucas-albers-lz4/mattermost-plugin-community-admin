@@ -22,9 +22,10 @@ const (
 
 // Target describes the resource being acted upon.
 type Target struct {
-	UserID    string
-	TeamID    string
-	ChannelID string
+	UserID        string
+	TeamID        string
+	ChannelID     string
+	ChannelIsOpen bool // required for wildcard channel scope checks
 }
 
 // UserInfo is the minimal user data needed for authorization.

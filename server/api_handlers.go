@@ -255,8 +255,8 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	for _, cid := range body.ChannelIDs {
-		chTeam, err := p.membershipService.GetChannelTeamID(cid)
-		if err != nil || !orgCtx.Organizer.HasChannel(cid, chTeam) {
+		chTeam, isOpen, err := p.membershipService.GetChannelScope(cid)
+		if err != nil || !orgCtx.Organizer.HasChannel(cid, chTeam, isOpen) {
 			p.writeError(w, authz.ErrChannelOutOfScope, http.StatusForbidden)
 			return
 		}
@@ -493,7 +493,7 @@ func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) 
 	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	channelID := mux.Vars(r)["channelId"]
-	chTeam, err := p.membershipService.GetChannelTeamID(channelID)
+	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
 	if err != nil {
 		p.writeError(w, err, http.StatusBadRequest)
 		return
@@ -505,7 +505,7 @@ func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) 
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}
-	if err := checker.Authorize(orgCtx, authz.OpAddChannelMember, authz.Target{UserID: userID, ChannelID: channelID, TeamID: chTeam}); err != nil {
+	if err := checker.Authorize(orgCtx, authz.OpAddChannelMember, authz.Target{UserID: userID, ChannelID: channelID, TeamID: chTeam, ChannelIsOpen: isOpen}); err != nil {
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}
@@ -525,7 +525,7 @@ func (p *Plugin) handleRemoveChannelMember(w http.ResponseWriter, r *http.Reques
 	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	channelID := mux.Vars(r)["channelId"]
-	chTeam, err := p.membershipService.GetChannelTeamID(channelID)
+	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
 	if err != nil {
 		p.writeError(w, err, http.StatusBadRequest)
 		return
@@ -537,7 +537,7 @@ func (p *Plugin) handleRemoveChannelMember(w http.ResponseWriter, r *http.Reques
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}
-	if err := checker.Authorize(orgCtx, authz.OpRemoveChannelMember, authz.Target{UserID: userID, ChannelID: channelID, TeamID: chTeam}); err != nil {
+	if err := checker.Authorize(orgCtx, authz.OpRemoveChannelMember, authz.Target{UserID: userID, ChannelID: channelID, TeamID: chTeam, ChannelIsOpen: isOpen}); err != nil {
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
@@ -32,9 +33,15 @@ func (s *MembershipService) RemoveChannelMember(channelID, userID string) error 
 }
 
 func (s *MembershipService) GetChannelTeamID(channelID string) (string, error) {
+	teamID, _, err := s.GetChannelScope(channelID)
+	return teamID, err
+}
+
+// GetChannelScope returns the channel's team ID and whether it is a public (open) channel.
+func (s *MembershipService) GetChannelScope(channelID string) (teamID string, isOpen bool, err error) {
 	ch, err := s.client.Channel.Get(channelID)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return ch.TeamId, nil
+	return ch.TeamId, ch.Type == model.ChannelTypeOpen, nil
 }
