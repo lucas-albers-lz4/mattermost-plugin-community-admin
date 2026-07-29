@@ -5,7 +5,10 @@ import {defineConfig} from '@playwright/test';
 
 dotenv.config({path: path.join(__dirname, '.env')});
 
-const testURL = process.env.TEST_URL || 'https://doomzilla.duckdns.org';
+const testURL = process.env.TEST_URL?.trim();
+if (!testURL) {
+    throw new Error('TEST_URL must be set in e2e/.env (see e2e/.env.example)');
+}
 
 export default defineConfig({
     testDir: './tests',

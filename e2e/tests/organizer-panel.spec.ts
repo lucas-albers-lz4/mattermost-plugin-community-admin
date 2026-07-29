@@ -43,7 +43,9 @@ test.describe('Community Admin organizer panel', () => {
         await expect(page.getByTestId('community-admin-credentials')).toBeVisible({timeout: 15_000});
         const creds = await page.getByTestId('community-admin-credentials-text').textContent();
         expect(creds).toContain(username);
-        expect(creds).toContain(process.env.TEST_URL?.replace(/^https?:\/\//, '') || 'doomzilla.duckdns.org');
+        const testHost = process.env.TEST_URL?.replace(/^https?:\/\//, '');
+        expect(testHost).toBeTruthy();
+        expect(creds).toContain(testHost!);
         await expect(page.getByTestId(`community-admin-user-row-${username}`)).toBeVisible();
     });
 

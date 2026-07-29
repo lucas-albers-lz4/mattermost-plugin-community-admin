@@ -6,7 +6,10 @@ import {fileURLToPath} from 'url';
 
 dotenv.config({path: path.join(path.dirname(fileURLToPath(import.meta.url)), '../.env')});
 
-const baseURL = process.env.TEST_URL || 'https://doomzilla.duckdns.org';
+const baseURL = process.env.TEST_URL?.trim();
+if (!baseURL) {
+    throw new Error('TEST_URL must be set in e2e/.env (see e2e/.env.example)');
+}
 const username = process.env.ORGANIZER_USERNAME || 'test.organizer';
 const password = process.env.ORGANIZER_PASSWORD || '';
 

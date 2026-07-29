@@ -143,6 +143,11 @@ const CommunityPanel: React.FC<Props> = ({onClose}) => {
                     placeholder='Search users'
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            load();
+                        }
+                    }}
                     style={{flex: 1}}
                 />
                 <button
