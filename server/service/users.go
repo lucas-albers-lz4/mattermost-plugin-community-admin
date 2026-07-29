@@ -128,13 +128,18 @@ func (s *UserService) ResetPassword(username, siteURL string) (*ResetPasswordRes
 		return nil, err
 	}
 
+	hashed, err := HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", password) //nolint:gosec // controlled local mmctl; see SECURITY.md
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("mmctl change-password: %w: %s", err, strings.TrimSpace(string(output)))
+	// Pass bcrypt hash via --hashed so plaintext never appears in process argv /proc/cmdline.
+	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", hashed, "--hashed") //nolint:gosec // controlled local mmctl; see SECURITY.md
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("mmctl change-password failed: %w", err)
 	}
 
 	return &ResetPasswordResult{

@@ -20,17 +20,19 @@ Target platform: Mattermost 11.x Team / Entry Edition (validated on 11.8.2).
 `mattermost-oci-deploy` enables `EnableLocalMode: true` on the Mattermost container. The plugin runs:
 
 ```
-/mattermost/bin/mmctl --local user change-password <username> --password <generated>
+/mattermost/bin/mmctl --local user change-password <username> --password <bcrypt-hash> --hashed
 ```
 
 Constraints:
 
 - Fixed binary path only (`/mattermost/bin/mmctl`)
 - Username validated with `^[a-z0-9._-]+$` before exec
-- Password generated server-side (never from client)
+- Password generated server-side (never from client); argv carries bcrypt hash only (`--hashed`)
+- Character shuffle uses crypto/rand Fisher–Yates
 - 30s subprocess timeout
 - No shell interpolation (direct `exec.Command` args)
 - Passwords are never written to audit logs or KV store
+- mmctl stderr is logged server-side and not returned to API clients
 
 ## Authorization model
 
