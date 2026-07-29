@@ -1,6 +1,14 @@
 import {APIRequestContext, expect, type Page} from '@playwright/test';
 
-const baseURL = process.env.TEST_URL || 'https://doomzilla.duckdns.org';
+function requireTestURL(): string {
+    const url = process.env.TEST_URL?.trim();
+    if (!url) {
+        throw new Error('TEST_URL must be set in e2e/.env (see e2e/.env.example)');
+    }
+    return url;
+}
+
+const baseURL = requireTestURL();
 
 export async function apiLogin(request: APIRequestContext, username: string, password: string): Promise<string> {
     const response = await request.post(`${baseURL}/api/v4/users/login`, {

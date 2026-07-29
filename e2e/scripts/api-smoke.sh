@@ -11,7 +11,7 @@ if [ -f "${SCRIPT_DIR}/../.env" ]; then
   set +a
 fi
 
-BASE_URL="${TEST_URL:-https://doomzilla.duckdns.org}"
+BASE_URL="${TEST_URL:?Set TEST_URL in e2e/.env}"
 PLUGIN_API="${BASE_URL}/plugins/com.lalbers.community-admin/api/v1"
 ORG_USER="${ORGANIZER_USERNAME:-test.organizer}"
 ORG_PASS="${ORGANIZER_PASSWORD:?Set ORGANIZER_PASSWORD in e2e/.env}"

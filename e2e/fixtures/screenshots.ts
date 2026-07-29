@@ -18,7 +18,11 @@ export type CaptureOptions = {
 };
 
 export function demoCredentialText(username: string): string {
-    const siteHost = (process.env.TEST_URL || 'https://doomzilla.duckdns.org').replace(/^https?:\/\//, '');
+    const testURL = process.env.TEST_URL?.trim();
+    if (!testURL) {
+        throw new Error('TEST_URL must be set in e2e/.env (see e2e/.env.example)');
+    }
+    const siteHost = testURL.replace(/^https?:\/\//, '');
     return `Site: ${siteHost}\nUsername: ${username}\nPassword: (example only — share privately)`;
 }
 

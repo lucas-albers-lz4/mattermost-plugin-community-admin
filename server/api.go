@@ -39,7 +39,7 @@ func (p *Plugin) mattermostAuthorizationRequired(next http.Handler) http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.Header.Get("Mattermost-User-Id")
 		if userID == "" {
-			http.Error(w, "Not authorized", http.StatusUnauthorized)
+			p.writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "not authorized"})
 			return
 		}
 		next.ServeHTTP(w, r)

@@ -430,9 +430,9 @@ func (p *Plugin) handleSetActive(w http.ResponseWriter, r *http.Request, active 
 	if active {
 		action = "reactivate"
 	}
-	target, _ := p.userService.GetByID(userID)
-	username := ""
-	if target != nil {
+	target, err := p.userService.GetByID(userID)
+	username := userID
+	if err == nil && target != nil && target.Username != "" {
 		username = target.Username
 	}
 	_ = p.auditService.Record(service.AuditEntry{
@@ -566,6 +566,7 @@ func (p *Plugin) handleAudit(w http.ResponseWriter, r *http.Request) {
 	actorID := p.actorID(r)
 	cfg := p.getScopeConfig()
 	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
+	// OpViewAudit only checks system_admin via lookup; Organizer may be nil.
 	orgCtx := &authz.OrganizerContext{ActorID: actorID, Config: cfg}
 	if err := checker.Authorize(orgCtx, authz.OpViewAudit, authz.Target{}); err != nil {
 		p.writeError(w, err, http.StatusForbidden)
@@ -852,7 +853,8 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 	for _, spec := range body.ChannelSpecs {
 		parts := splitChannelSpec(spec)
 		if len(parts) != 2 {
-			continue
+			p.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid channel spec (want team:channel): " + spec})
+			return
 		}
 		ch, err := p.client.Channel.GetByNameForTeamName(parts[0], parts[1], false)
 		if err != nil {
@@ -869,12 +871,11 @@ func (p *Plugin) handleResolveScope(w http.ResponseWriter, r *http.Request) {
 }
 
 func splitChannelSpec(spec string) []string {
-	for i := 0; i < len(spec); i++ {
-		if spec[i] == ':' {
-			return []string{spec[:i], spec[i+1:]}
-		}
+	parts := strings.SplitN(spec, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return nil
 	}
-	return nil
+	return parts
 }
 
 // resolveTeamByNameOrDisplay finds a team by URL slug, a spaced display name

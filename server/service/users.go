@@ -26,7 +26,6 @@ type CreateUserRequest struct {
 	Username   string
 	FirstName  string
 	LastName   string
-	Email      string
 	Password   string
 	TeamIDs    []string
 	ChannelIDs []string
@@ -52,10 +51,7 @@ func (s *UserService) CreateUser(req CreateUserRequest, emailDomain, siteURL str
 		}
 	}
 
-	email := req.Email
-	if email == "" {
-		email = req.Username + "@" + emailDomain
-	}
+	email := req.Username + "@" + emailDomain
 
 	user := &model.User{
 		Username:            strings.ToLower(req.Username),
