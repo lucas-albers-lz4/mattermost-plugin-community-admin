@@ -11,10 +11,12 @@ import (
 )
 
 const (
-	auditKeyPrefix  = "audit_"
-	auditIndexKey   = "audit_index"
-	maxAuditEntries = 10000
-	auditRetention  = 90 * 24 * time.Hour
+	auditKeyPrefix        = "audit_"
+	auditIndexKey         = "audit_index"
+	maxAuditEntries       = 10000
+	maxAuditListLimit     = 500
+	defaultAuditListLimit = 100
+	auditRetention        = 90 * 24 * time.Hour
 )
 
 var errRateLimited = errors.New("rate limited")
@@ -118,14 +120,16 @@ func (s *AuditService) Record(entry AuditEntry) error {
 }
 
 func (s *AuditService) List(limit int) ([]AuditEntry, error) {
-	if limit <= 0 || limit > 500 {
-		limit = 100
+	if limit <= 0 || limit > maxAuditListLimit {
+		limit = defaultAuditListLimit
 	}
 	var index []string
 	if err := s.kv.Get(auditIndexKey, &index); err != nil {
 		return nil, err
 	}
-	entries := make([]AuditEntry, 0, limit)
+	// Capacity uses the fixed max so allocation size is not attacker-controlled
+	// (CodeQL go/uncontrolled-allocation-size). The loop still stops at limit.
+	entries := make([]AuditEntry, 0, maxAuditListLimit)
 	cutoff := time.Now().UTC().Add(-auditRetention)
 	for i := 0; i < len(index) && len(entries) < limit; i++ {
 		var entry AuditEntry
