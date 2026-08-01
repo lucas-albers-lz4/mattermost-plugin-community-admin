@@ -62,27 +62,31 @@ func limitRequestBody(w http.ResponseWriter, r *http.Request, maxBytes int64) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 }
 
-func (p *Plugin) organizerContext(actorID string) (*authz.OrganizerContext, error) {
+func (p *Plugin) requireOrganizer(w http.ResponseWriter, r *http.Request) (*authz.OrganizerContext, *authz.Checker, bool) {
+	actorID := p.actorID(r)
 	cfg := p.getScopeConfig()
 	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	return checker.ResolveOrganizer(actorID)
+	orgCtx, err := checker.ResolveOrganizer(actorID)
+	if err != nil {
+		p.writeError(w, err, http.StatusForbidden)
+		return nil, nil, false
+	}
+	return orgCtx, checker, true
 }
 
 func (p *Plugin) handleMe(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
-	ctx, err := p.organizerContext(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, _, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
-	teams, channels := p.scopeChoicesForOrganizer(ctx.Organizer)
+	teams, channels := p.scopeChoicesForOrganizer(orgCtx.Organizer)
 	p.writeJSON(w, http.StatusOK, map[string]any{
-		"user_id":          ctx.ActorID,
-		"display_username": ctx.Organizer.DisplayUsername,
+		"user_id":          orgCtx.ActorID,
+		"display_username": orgCtx.Organizer.DisplayUsername,
 		"teams":            teams,
 		"channels":         channels,
-		"permissions":      ctx.Organizer.Permissions,
-		"site_url":         ctx.Config.SiteURL,
+		"permissions":      orgCtx.Organizer.Permissions,
+		"site_url":         orgCtx.Config.SiteURL,
 	})
 }
 
@@ -177,12 +181,8 @@ func (p *Plugin) scopeChoicesForOrganizer(org *config.Organizer) ([]config.TeamR
 }
 
 func (p *Plugin) handleListUsers(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 
@@ -231,12 +231,8 @@ type createUserBody struct {
 }
 
 func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 
@@ -269,7 +265,7 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ok, err := p.rateLimitService.CheckAndIncrement(actorID, "create_user", orgCtx.Organizer.RateLimits.EffectiveCreatesPerHour())
+	ok, err := p.rateLimitService.CheckAndIncrement(orgCtx.ActorID, "create_user", orgCtx.Organizer.RateLimits.EffectiveCreatesPerHour())
 	if err != nil {
 		p.writeError(w, err, http.StatusInternalServerError)
 		return
@@ -285,15 +281,15 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		LastName:   body.LastName,
 		TeamIDs:    body.TeamIDs,
 		ChannelIDs: body.ChannelIDs,
-	}, cfg.EmailDomain, cfg.SiteURL)
+	}, orgCtx.Config.EmailDomain, orgCtx.Config.SiteURL)
 	if err != nil {
 		p.writeError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID:        actorID,
-		ActorUsername:  actorUsername(p.client, actorID),
+		ActorID:        orgCtx.ActorID,
+		ActorUsername:  actorUsername(p.client, orgCtx.ActorID),
 		Action:         "create_user",
 		TargetID:       result.User.Id,
 		TargetUsername: result.User.Username,
@@ -308,13 +304,9 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handlePatchUser(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpEditProfile, authz.Target{UserID: userID}); err != nil {
@@ -339,7 +331,7 @@ func (p *Plugin) handlePatchUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: "edit_profile", TargetID: userID, TargetUsername: user.Username,
 		ClientIP: pluginContextIP(r),
 	})
@@ -347,13 +339,9 @@ func (p *Plugin) handlePatchUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleResetPassword(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpResetPassword, authz.Target{UserID: userID}); err != nil {
@@ -361,7 +349,7 @@ func (p *Plugin) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := p.rateLimitService.CheckAndIncrement(actorID, "reset_password", orgCtx.Organizer.RateLimits.EffectivePasswordResetsPerHour())
+	ok, err := p.rateLimitService.CheckAndIncrement(orgCtx.ActorID, "reset_password", orgCtx.Organizer.RateLimits.EffectivePasswordResetsPerHour())
 	if err != nil {
 		p.writeError(w, err, http.StatusInternalServerError)
 		return
@@ -377,14 +365,14 @@ func (p *Plugin) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := p.userService.ResetPassword(target.Username, cfg.SiteURL)
+	result, err := p.userService.ResetPassword(target.Username, orgCtx.Config.SiteURL)
 	if err != nil {
 		p.writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: "reset_password", TargetID: userID, TargetUsername: target.Username,
 		ClientIP: pluginContextIP(r),
 	})
@@ -405,13 +393,9 @@ func (p *Plugin) handleDeactivate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleSetActive(w http.ResponseWriter, r *http.Request, active bool) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	op := authz.OpDeactivateGlobal
@@ -436,7 +420,7 @@ func (p *Plugin) handleSetActive(w http.ResponseWriter, r *http.Request, active 
 		username = target.Username
 	}
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: action, TargetID: userID, TargetUsername: username,
 		ClientIP: pluginContextIP(r),
 	})
@@ -444,14 +428,10 @@ func (p *Plugin) handleSetActive(w http.ResponseWriter, r *http.Request, active 
 }
 
 func (p *Plugin) handleAddTeamMember(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	teamID := mux.Vars(r)["teamId"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpAddTeamMember, authz.Target{UserID: userID, TeamID: teamID}); err != nil {
@@ -463,7 +443,7 @@ func (p *Plugin) handleAddTeamMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: "add_team_member", TargetID: userID, TeamID: teamID,
 		ClientIP: pluginContextIP(r),
 	})
@@ -471,26 +451,22 @@ func (p *Plugin) handleAddTeamMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleRemoveTeamMember(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	teamID := mux.Vars(r)["teamId"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpRemoveTeamMember, authz.Target{UserID: userID, TeamID: teamID}); err != nil {
 		p.writeError(w, err, http.StatusForbidden)
 		return
 	}
-	if err := p.membershipService.RemoveTeamMember(teamID, userID, actorID); err != nil {
+	if err := p.membershipService.RemoveTeamMember(teamID, userID, orgCtx.ActorID); err != nil {
 		p.writeError(w, err, http.StatusBadRequest)
 		return
 	}
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: "remove_team_member", TargetID: userID, TeamID: teamID,
 		ClientIP: pluginContextIP(r),
 	})
@@ -498,14 +474,10 @@ func (p *Plugin) handleRemoveTeamMember(w http.ResponseWriter, r *http.Request) 
 }
 
 func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	channelID := mux.Vars(r)["channelId"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
@@ -523,7 +495,7 @@ func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: "add_channel_member", TargetID: userID, ChannelID: channelID, TeamID: chTeam,
 		ClientIP: pluginContextIP(r),
 	})
@@ -531,14 +503,10 @@ func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) 
 }
 
 func (p *Plugin) handleRemoveChannelMember(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
 	userID := mux.Vars(r)["id"]
 	channelID := mux.Vars(r)["channelId"]
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	chTeam, isOpen, err := p.membershipService.GetChannelScope(channelID)
@@ -555,7 +523,7 @@ func (p *Plugin) handleRemoveChannelMember(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: actorID, ActorUsername: actorUsername(p.client, actorID),
+		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
 		Action: "remove_channel_member", TargetID: userID, ChannelID: channelID, TeamID: chTeam,
 		ClientIP: pluginContextIP(r),
 	})
@@ -582,12 +550,8 @@ func (p *Plugin) handleAudit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
-	actorID := p.actorID(r)
-	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
-	orgCtx, err := checker.ResolveOrganizer(actorID)
-	if err != nil {
-		p.writeError(w, err, http.StatusForbidden)
+	orgCtx, checker, ok := p.requireOrganizer(w, r)
+	if !ok {
 		return
 	}
 	if err := checker.Authorize(orgCtx, authz.OpBatchImport, authz.Target{}); err != nil {
@@ -612,9 +576,9 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	quota := func() (bool, error) {
-		return p.rateLimitService.CheckAndIncrement(actorID, "create_user", orgCtx.Organizer.RateLimits.EffectiveCreatesPerHour())
+		return p.rateLimitService.CheckAndIncrement(orgCtx.ActorID, "create_user", orgCtx.Organizer.RateLimits.EffectiveCreatesPerHour())
 	}
-	results, err := p.batchService.Import(rows, orgCtx.Organizer, cfg, dryRun, quota)
+	results, err := p.batchService.Import(rows, orgCtx.Organizer, orgCtx.Config, dryRun, quota)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, service.ErrBatchValidation) {
@@ -623,12 +587,12 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, status)
 		return
 	}
-	actorName := actorUsername(p.client, actorID)
+	actorName := actorUsername(p.client, orgCtx.ActorID)
 	clientIP := pluginContextIP(r)
 	for _, res := range results {
 		if res.Created {
 			_ = p.auditService.Record(service.AuditEntry{
-				ActorID: actorID, ActorUsername: actorName,
+				ActorID: orgCtx.ActorID, ActorUsername: actorName,
 				Action: "batch_create_user", TargetID: res.UserID, TargetUsername: res.Username,
 				ClientIP: clientIP,
 			})
