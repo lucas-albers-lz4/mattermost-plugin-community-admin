@@ -74,6 +74,13 @@ func (p *Plugin) requireOrganizer(w http.ResponseWriter, r *http.Request) (*auth
 	return orgCtx, checker, true
 }
 
+func (p *Plugin) recordAudit(r *http.Request, actorID string, entry service.AuditEntry) {
+	entry.ActorID = actorID
+	entry.ActorUsername = actorUsername(p.client, actorID)
+	entry.ClientIP = pluginContextIP(r)
+	_ = p.auditService.Record(entry)
+}
+
 func (p *Plugin) handleMe(w http.ResponseWriter, r *http.Request) {
 	orgCtx, _, ok := p.requireOrganizer(w, r)
 	if !ok {
@@ -287,13 +294,10 @@ func (p *Plugin) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID:        orgCtx.ActorID,
-		ActorUsername:  actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action:         "create_user",
 		TargetID:       result.User.Id,
 		TargetUsername: result.User.Username,
-		ClientIP:       pluginContextIP(r),
 	})
 
 	p.writeJSON(w, http.StatusCreated, map[string]any{
@@ -330,10 +334,8 @@ func (p *Plugin) handlePatchUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: "edit_profile", TargetID: userID, TargetUsername: user.Username,
-		ClientIP: pluginContextIP(r),
 	})
 	p.writeJSON(w, http.StatusOK, sanitizeUser(user))
 }
@@ -371,10 +373,8 @@ func (p *Plugin) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: "reset_password", TargetID: userID, TargetUsername: target.Username,
-		ClientIP: pluginContextIP(r),
 	})
 
 	p.writeJSON(w, http.StatusOK, map[string]any{
@@ -419,10 +419,8 @@ func (p *Plugin) handleSetActive(w http.ResponseWriter, r *http.Request, active 
 	if err == nil && target != nil && target.Username != "" {
 		username = target.Username
 	}
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: action, TargetID: userID, TargetUsername: username,
-		ClientIP: pluginContextIP(r),
 	})
 	p.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -442,10 +440,8 @@ func (p *Plugin) handleAddTeamMember(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, http.StatusBadRequest)
 		return
 	}
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: "add_team_member", TargetID: userID, TeamID: teamID,
-		ClientIP: pluginContextIP(r),
 	})
 	p.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -465,10 +461,8 @@ func (p *Plugin) handleRemoveTeamMember(w http.ResponseWriter, r *http.Request) 
 		p.writeError(w, err, http.StatusBadRequest)
 		return
 	}
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: "remove_team_member", TargetID: userID, TeamID: teamID,
-		ClientIP: pluginContextIP(r),
 	})
 	p.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -494,10 +488,8 @@ func (p *Plugin) handleAddChannelMember(w http.ResponseWriter, r *http.Request) 
 		p.writeError(w, err, http.StatusBadRequest)
 		return
 	}
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: "add_channel_member", TargetID: userID, ChannelID: channelID, TeamID: chTeam,
-		ClientIP: pluginContextIP(r),
 	})
 	p.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -522,10 +514,8 @@ func (p *Plugin) handleRemoveChannelMember(w http.ResponseWriter, r *http.Reques
 		p.writeError(w, err, http.StatusBadRequest)
 		return
 	}
-	_ = p.auditService.Record(service.AuditEntry{
-		ActorID: orgCtx.ActorID, ActorUsername: actorUsername(p.client, orgCtx.ActorID),
+	p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 		Action: "remove_channel_member", TargetID: userID, ChannelID: channelID, TeamID: chTeam,
-		ClientIP: pluginContextIP(r),
 	})
 	p.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -587,14 +577,10 @@ func (p *Plugin) handleBatchImport(w http.ResponseWriter, r *http.Request) {
 		p.writeError(w, err, status)
 		return
 	}
-	actorName := actorUsername(p.client, orgCtx.ActorID)
-	clientIP := pluginContextIP(r)
 	for _, res := range results {
 		if res.Created {
-			_ = p.auditService.Record(service.AuditEntry{
-				ActorID: orgCtx.ActorID, ActorUsername: actorName,
+			p.recordAudit(r, orgCtx.ActorID, service.AuditEntry{
 				Action: "batch_create_user", TargetID: res.UserID, TargetUsername: res.Username,
-				ClientIP: clientIP,
 			})
 		}
 	}
