@@ -1,5 +1,8 @@
 # Community Admin for Mattermost
 
+[![Tests](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/actions/workflows/ci.yml/badge.svg)](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 Delegated user management for **invite-only Mattermost communities**. System administrators configure trusted organizers; organizers create members, reset passwords, and manage team membership within assigned scope — without email invites or full system-admin access.
 
 **Plugin ID:** `com.lalbers.community-admin`  \
