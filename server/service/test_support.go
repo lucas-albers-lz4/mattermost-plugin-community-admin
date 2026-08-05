@@ -13,16 +13,20 @@ type staticUsersAPI struct {
 }
 
 func (s *staticUsersAPI) Create(*model.User) error { return errors.New("not implemented") }
+
 func (s *staticUsersAPI) Update(*model.User) error { return errors.New("not implemented") }
+
 func (s *staticUsersAPI) UpdateActive(string, bool) error {
 	return errors.New("not implemented")
 }
+
 func (s *staticUsersAPI) Get(userID string) (*model.User, error) {
 	if u, ok := s.byID[userID]; ok {
 		return u, nil
 	}
 	return nil, errors.New("not found")
 }
+
 func (s *staticUsersAPI) GetByUsername(username string) (*model.User, error) {
 	for _, u := range s.byID {
 		if u.Username == username {
@@ -37,7 +41,9 @@ type emptyTeamsAPI struct{}
 func (emptyTeamsAPI) CreateMember(string, string) (*model.TeamMember, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (emptyTeamsAPI) ListUsers(string, int, int) ([]*model.User, error) { return nil, nil }
+
 func (emptyTeamsAPI) List(...pluginapi.TeamListOption) ([]*model.Team, error) {
 	return nil, nil
 }
