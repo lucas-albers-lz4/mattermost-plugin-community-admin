@@ -65,7 +65,11 @@ func limitRequestBody(w http.ResponseWriter, r *http.Request, maxBytes int64) {
 func (p *Plugin) requireOrganizer(w http.ResponseWriter, r *http.Request) (*authz.OrganizerContext, *authz.Checker, bool) {
 	actorID := p.actorID(r)
 	cfg := p.getScopeConfig()
-	checker := authz.NewChecker(cfg, newPluginUserLookup(p.client))
+	lookup := p.userLookup
+	if lookup == nil {
+		lookup = newPluginUserLookup(p.client)
+	}
+	checker := authz.NewChecker(cfg, lookup)
 	orgCtx, err := checker.ResolveOrganizer(actorID)
 	if err != nil {
 		p.writeError(w, err, http.StatusForbidden)
@@ -75,6 +79,9 @@ func (p *Plugin) requireOrganizer(w http.ResponseWriter, r *http.Request) (*auth
 }
 
 func (p *Plugin) recordAudit(r *http.Request, actorID string, entry service.AuditEntry) {
+	if p.auditService == nil {
+		return
+	}
 	entry.ActorID = actorID
 	entry.ActorUsername = actorUsername(p.client, actorID)
 	entry.ClientIP = pluginContextIP(r)

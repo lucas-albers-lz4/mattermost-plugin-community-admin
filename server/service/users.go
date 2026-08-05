@@ -35,12 +35,16 @@ type warnLogger interface {
 	Warn(message string, keyValuePairs ...any)
 }
 
+// changePasswordFunc runs mmctl user change-password (hashed) for ResetPassword.
+type changePasswordFunc func(ctx context.Context, username, hashedPassword string) error
+
 // UserService handles user CRUD via plugin API.
 type UserService struct {
-	users    userAPI
-	teams    teamUsersAPI
-	channels channelUsersAPI
-	log      warnLogger
+	users          userAPI
+	teams          teamUsersAPI
+	channels       channelUsersAPI
+	log            warnLogger
+	changePassword changePasswordFunc
 }
 
 func NewUserService(client *pluginapi.Client) *UserService {
@@ -54,6 +58,16 @@ func NewUserService(client *pluginapi.Client) *UserService {
 
 func newUserServiceForTest(users userAPI, teams teamUsersAPI, channels channelUsersAPI, log warnLogger) *UserService {
 	return &UserService{users: users, teams: teams, channels: channels, log: log}
+}
+
+func defaultChangePassword(ctx context.Context, username, hashedPassword string) error {
+	// Pass bcrypt hash via --hashed so plaintext never appears in process argv /proc/cmdline.
+	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", hashedPassword, "--hashed") //nolint:gosec // controlled local mmctl; see SECURITY.md
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mmctl change-password failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 type CreateUserRequest struct {
@@ -175,11 +189,12 @@ func (s *UserService) ResetPassword(username, siteURL string) (*ResetPasswordRes
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Pass bcrypt hash via --hashed so plaintext never appears in process argv /proc/cmdline.
-	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", hashed, "--hashed") //nolint:gosec // controlled local mmctl; see SECURITY.md
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("mmctl change-password failed: %w: %s", err, strings.TrimSpace(string(output)))
+	run := s.changePassword
+	if run == nil {
+		run = defaultChangePassword
+	}
+	if err := run(ctx, username, hashed); err != nil {
+		return nil, err
 	}
 
 	return &ResetPasswordResult{

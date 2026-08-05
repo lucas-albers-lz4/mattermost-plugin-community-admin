@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 
+	"github.com/lalbers/mattermost-plugin-community-admin/server/authz"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/command"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/config"
 	"github.com/lalbers/mattermost-plugin-community-admin/server/service"
@@ -31,6 +32,9 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	configuration     *configuration
 	parsedScopeConfig *config.ScopeConfig
+
+	// userLookup overrides plugin API lookup when set (tests).
+	userLookup authz.UserLookup
 
 	userService       *service.UserService
 	membershipService *service.MembershipService

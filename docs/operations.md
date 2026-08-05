@@ -8,6 +8,8 @@ make dist
 
 Output: `dist/com.lalbers.community-admin-<version>.tar.gz`
 
+Before shipping a release, follow the [pre-release checklist](testing.md#pre-release-checklist) (unit tests, install on test, api-smoke + Playwright). Not a nightly job.
+
 ## Install (production)
 
 Installation instructions are in the [root README](../README.md#installation). The recommended approach is:
