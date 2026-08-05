@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -162,4 +164,48 @@ func TestTeamIDsForUser(t *testing.T) {
 	ids, err := svc.TeamIDsForUser("u1")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"t1", "t2"}, ids)
+}
+
+func TestResetPasswordRejectsInvalidUsername(t *testing.T) {
+	called := false
+	svc := newUserServiceForTest(&stubUsersAPI{}, &stubTeamsAPI{}, &stubChannelsAPI{}, noopLog{})
+	svc.changePassword = func(context.Context, string, string) error {
+		called = true
+		return nil
+	}
+	_, err := svc.ResetPassword("Bad User!", "https://chat.example.com")
+	require.Error(t, err)
+	assert.False(t, called)
+}
+
+func TestResetPasswordSuccess(t *testing.T) {
+	var gotUser, gotHash string
+	svc := newUserServiceForTest(&stubUsersAPI{}, &stubTeamsAPI{}, &stubChannelsAPI{}, noopLog{})
+	svc.changePassword = func(_ context.Context, username, hashed string) error {
+		gotUser = username
+		gotHash = hashed
+		return nil
+	}
+
+	res, err := svc.ResetPassword("child.one", "https://chat.example.com")
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, "child.one", res.Username)
+	assert.Equal(t, "child.one", gotUser)
+	assert.NotEmpty(t, res.Password)
+	assert.NotEqual(t, res.Password, gotHash)
+	assert.True(t, strings.HasPrefix(gotHash, "$2"), "expected bcrypt hash, got %q", gotHash)
+	assert.Contains(t, res.ParentText, "https://chat.example.com")
+	assert.Contains(t, res.ParentText, "child.one")
+	assert.Contains(t, res.ParentText, res.Password)
+}
+
+func TestResetPasswordRunnerError(t *testing.T) {
+	svc := newUserServiceForTest(&stubUsersAPI{}, &stubTeamsAPI{}, &stubChannelsAPI{}, noopLog{})
+	svc.changePassword = func(context.Context, string, string) error {
+		return errors.New("mmctl boom")
+	}
+	_, err := svc.ResetPassword("child.one", "https://chat.example.com")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mmctl boom")
 }

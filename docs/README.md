@@ -5,7 +5,7 @@
 | [configuration.md](configuration.md) | Operators | Organizer scope, System Console setup |
 | [user-guide.md](user-guide.md) | Organizers | RHS panel, slash commands, credential handoff (illustrated with screenshots) |
 | [operations.md](operations.md) | Operators / devs | Build, install, test instance, troubleshooting |
-| [testing.md](testing.md) | Developers | API smoke, Playwright e2e, manual checklist |
+| [testing.md](testing.md) | Developers | Pre-release checklist, API smoke, Playwright e2e, manual checklist |
 | [design.md](design.md) | Developers | API choices, authz model, password-reset bridge |
 | [FAQ.md](FAQ.md) | Everyone | Common questions and answers |
 | [CHANGELOG.md](../CHANGELOG.md) | Everyone | Release history |

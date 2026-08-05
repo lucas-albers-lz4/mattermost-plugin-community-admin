@@ -1,5 +1,17 @@
 # Testing
 
+## Pre-release checklist
+
+Run manually before tagging or shipping a release tarball. Not scheduled CI/nightly — the test host is IP-restricted (`TEST_ALLOWED_CIDR`).
+
+1. `go test ./server/...`
+2. `make dist`
+3. Install the tarball on the test instance; run `e2e/scripts/api-smoke.sh`
+4. `cd e2e && npm test` (Playwright panel flows)
+5. Spot-check manual A6–A8 below if slash commands or admin console changed
+
+Details for the test environment, smoke script, and Playwright setup follow.
+
 ## Test environment
 
 | Item | Value |

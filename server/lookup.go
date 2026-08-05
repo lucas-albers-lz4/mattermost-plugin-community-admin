@@ -28,6 +28,9 @@ func sanitizeUserWithTeams(u *model.User, teamIDs []string) map[string]any {
 }
 
 func actorUsername(client *pluginapi.Client, actorID string) string {
+	if client == nil {
+		return actorID
+	}
 	user, err := client.User.Get(actorID)
 	if err != nil {
 		client.Log.Warn("actor username lookup failed; using actor id", "actor_id", actorID, "error", err.Error())
