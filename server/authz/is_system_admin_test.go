@@ -1,9 +1,20 @@
 package authz
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
+
+// tokenHasAdmin is the reference semantics for IsSystemAdmin: true iff the
+// exact "system_admin" token is in the whitespace-delimited role list.
+// Written with slices.Contains (per golangci modernize) but kept as a named
+// helper so the fuzz property below compares against the reference
+// semantics — if the implementation ever regresses (substring match, token
+// rename, different separator), the fuzz test fails.
+func tokenHasAdmin(roles string) bool {
+	return slices.Contains(strings.Fields(roles), "system_admin")
+}
 
 // TestIsSystemAdminTokenBoundary pins the exact-token semantics of
 // IsSystemAdmin. Regression guard for the substring-match bug (#60):
@@ -57,13 +68,7 @@ func FuzzIsSystemAdmin(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, roles string) {
-		want := false
-		for _, tok := range strings.Fields(roles) {
-			if tok == "system_admin" {
-				want = true
-				break
-			}
-		}
+		want := tokenHasAdmin(roles)
 		if got := IsSystemAdmin(roles); got != want {
 			t.Errorf("IsSystemAdmin(%q) = %v, want %v (token membership)", roles, got, want)
 		}
