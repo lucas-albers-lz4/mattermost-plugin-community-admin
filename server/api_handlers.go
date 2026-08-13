@@ -635,10 +635,7 @@ func adminPaginationBounds(page, perPage, length int) (start, end int) {
 	if start == length {
 		return start, start
 	}
-	end = start + perPage
-	if end > length {
-		end = length
-	}
+	end = min(start+perPage, length)
 	return start, end
 }
 
