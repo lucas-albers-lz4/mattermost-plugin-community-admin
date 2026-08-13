@@ -28,7 +28,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
 | ScopeConfig parse/cache | `server/configuration.go`, `config/schema.go` | 2026-08-12 | I1 documented residual |
 | Webapp RHS / ScopeEditor | `webapp/src/` | 2026-08-12 (Opus XSS sweep) | W1 (CSRF header only) |
-| CI / release | `.github/workflows/` | 2026-08-12 (Opus) | R1, **R2**, R3, R4, C1–C3 |
+| CI / release | `.github/workflows/` | 2026-08-12 (Opus) | R1, **R2**, R3, C1–C3 |
 | Z3 username proof | `proof_username_whitelist.py` | 2026-08-12 | V2, P1 |
 | e2e / smoke | `e2e/` | 2026-08-12 (Opus) | C4, E1–E3 |
 
@@ -93,7 +93,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | CI reusable workflow pin | **none** — `plugin-ci.yml@main` | — | **R1 open** (`secrets: inherit` currently empty — Medium not High) |
 | Release job token vs `npm ci` | **none** — `contents: write` + default `persist-credentials` | — | **R2 open (High)** |
 | Release checksums | `SHA256SUMS` same-job, unsigned, no provenance | — | **R3 open** |
-| Dev-scope npm CVEs | Dependabot auto-dismiss; dependency-review `fail_on_scopes: runtime` | — | **R4 open** |
+| Dev-scope npm CVEs | `webapp/package.json` overrides pin patched versions; lockfile refreshed and verified with `npm ls` | host | `cd webapp && npm ls brace-expansion nanoid` |
 | Action major tags (`@v5`, `@v2`) | fleet won't-fix (CodeQL alert 3 dismissed) | manual | same as regexproof |
 | Z3 proof in merge gate | **not wired** to CI / pre-commit / Makefile | — | **P1 open** |
 | Required status checks | **none** on `master` | — | **C1 open** |
@@ -112,7 +112,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | I2 | Medium | Audit | HTTP `recordAudit` discards `Record` errors; successful mutations can be unaudited. Slash at least logs. Sol. |
 | R1 | Medium | CI TCB | `.github/workflows/ci.yml` uses `mattermost/actions-workflows/.../plugin-ci.yml@main` (moving branch, `secrets: inherit`, `id-token: write`). Repo secrets list is empty today, so Medium not High. Opus + parent. |
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
-| R4 | Medium | npm overrides | `brace-expansion` pinned to 1.1.16 / 2.1.2 (patched 1.1.18 / 2.1.4); `nanoid` 3.3.16 vs 3.3.17. Alerts auto-dismissed as development-scope; dependency-review ignores `dev`. Same tree runs in R2’s write-capable job. Opus; lockfile confirmed. |
 | C1 | Medium | False-green | `master` has no required status checks and no required PR reviews. Opus (`GET /branches/master/protection`). |
 | C2 | Medium | False-green | Nightly `schedule` in `ci.yml` is always skipped (upstream `repository_owner == 'mattermost'`). Neutral, never alerts. Opus. |
 | C3 | Medium | False-green | `release.yml` runs no tests and does not `needs:` CI. A `v*` tag publishes regardless. Opus. |
@@ -148,6 +147,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | [#49](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/49) | Audit List alloc | [PR #49](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/49) |
 | [#56](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/56) | Dependabot fast-uri / postcss | [PR #55](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/55) |
 | Dependabot 117 / js-yaml CVE-2026-59870 | Webapp override | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) |
+| R4 | Dev-scope npm CVEs | PR TBD — `brace-expansion` 1.1.18 / 2.1.4 and `nanoid` 3.3.17 overrides with refreshed lockfile |
 | Z3 username alphabet | Injection alphabet | [PR #59](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/59) (scope: chars only) |
 
 ## Accepted residuals
@@ -188,6 +188,10 @@ Opus also **disproved**: js-yaml #62 is a real lockfile fix; Dependabot `ignore`
 Sol I1 (config last-known-good) and I4 (reset TOCTOU) were filed High; parent **downgraded** to accepted residuals (#39 intent; concurrent-admin race). I5 matches #36 deferred rollback. Ledger C1 (Z3 not in CI) **renamed P1** so Opus C1 (no required checks) can keep its ID.
 
 This file is the first in-repo ledger (previously implicit in `SECURITY.md` + closed issues). Wired into `.cursor/rules/security-audit.mdc`, `AGENTS.md`, and `CONTRIBUTING.md`. js-yaml CVE closed by PR #62.
+
+### 2026-08-12 — R4 npm override remediation
+
+Pinned `brace-expansion` to 1.1.18 / 2.1.4 and `nanoid` to 3.3.17; refreshed `webapp/package-lock.json` and verified the resolved tree. PR TBD.
 
 ## Review procedure
 
