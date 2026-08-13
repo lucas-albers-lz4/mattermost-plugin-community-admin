@@ -199,6 +199,29 @@ func TestIsSystemAdminExactToken(t *testing.T) {
 	assert.False(t, IsSystemAdmin("system_admin_extra"))
 }
 
+func TestIsProtectedSystemRoles(t *testing.T) {
+	tests := []struct {
+		name  string
+		roles string
+		want  bool
+	}{
+		{name: "system manager", roles: "system_manager", want: true},
+		{name: "system user manager", roles: "system_user_manager", want: true},
+		{name: "normal user", roles: "system_user", want: false},
+		{name: "normal guest", roles: "system_guest", want: false},
+		{name: "system admin", roles: "system_admin", want: true},
+		{name: "normal user plus elevated role", roles: "system_user system_manager", want: true},
+		{name: "normal guest plus elevated role", roles: "system_guest system_user_manager", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target := &UserInfo{ID: "target", Roles: tt.roles}
+			assert.Equal(t, tt.want, isProtected(nil, "actor", target))
+		})
+	}
+}
+
 func TestUserVisibleIntersection(t *testing.T) {
 	cfg := testConfig()
 	checker := NewChecker(cfg, testLookup())

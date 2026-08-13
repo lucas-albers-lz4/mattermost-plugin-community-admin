@@ -20,7 +20,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 
 | Surface | Where | Last reviewed | Open findings |
 |---------|-------|---------------|---------------|
-| Authz checker | `server/authz/` | 2026-08-12 (Grok + GLM; #61 token match) | S1 (non-admin system_* roles) |
+| Authz checker | `server/authz/` | 2026-08-12 (S1 remediation) | none new |
 | HTTP API + errors | `server/api.go`, `api_handlers.go` | 2026-08-12 | V4, I2 |
 | Password / mmctl | `server/service/users.go`, `password.go` | 2026-08-13 | V5 |
 | Audit + rate-limit KV | `server/service/audit.go` | 2026-08-12 | I2, I3 |
@@ -57,7 +57,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Unauthenticated plugin HTTP | `mattermostAuthorizationRequired` rejects empty `Mattermost-User-Id` (header set by server, not the client) | host | `TestAPIUnauthorized` |
 | Non-organizer access | `ResolveOrganizer` + `requireOrganizer` on mutating routes | host | `TestAuthorizationMatrix` · `TestAPIRequireOrganizerDenied` · lab A1 |
 | Account-wide ops on out-of-scope users | `authorizeAccountWideTarget` requires team intersection **and** `allTeamsSubset` | host | matrix: reset/edit/deactivate cross-team → `ErrForbidden` |
-| Protected targets | self, bots, exact `system_admin` token, peer organizers, username `calls` | host | matrix + `TestIsSystemAdminTokenBoundary` / fuzz (#61) — **other `system_*` manager roles are S1** |
+| Protected targets | self, bots, elevated `system_*` roles except `system_user` / `system_guest`, peer organizers, username `calls` | host | matrix + `TestIsSystemAdminTokenBoundary` / `TestIsProtectedSystemRoles` / fuzz (#61) |
 | Private channels via wildcard | `HasChannel` wildcard only when `channelIsOpen`; `GetChannelScope` uses `ChannelTypeOpen` | host | `TestHasChannelWildcardRequiresOpen` · `TestGetChannelScopeOpenAndPrivate` |
 | Channel ID existence oracle | missing channel → same 403 as out-of-scope | host | `handleAddChannelMember` |
 | Username → shell metachar / argv flags | charset `^[a-z][a-z0-9._-]*$` at create, batch, **and** reset; `exec.CommandContext` argv (no shell) with `--` before username | host | `TestValidateUsername` · `TestChangePasswordArgsSeparateUsernameFromFlags` · Z3 `proof_username_whitelist.py` |
@@ -107,7 +107,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | ID | Sev | Area | Notes |
 |----|-----|------|-------|
-| S1 | Medium | Protected targets | `isProtected` does not cover `system_user_manager`, `system_manager`, `system_read_only_admin`, and similar. If such a user is fully in organizer scope (`allTeamsSubset`), password reset is allowed. Grok exploit pass. Fix: treat known elevated `system_*` tokens (except `system_user` / `system_guest`) as protected. |
 | I2 | Medium | Audit | HTTP `recordAudit` discards `Record` errors; successful mutations can be unaudited. Slash at least logs. Sol. |
 | R1 | Medium | CI TCB | `.github/workflows/ci.yml` uses `mattermost/actions-workflows/.../plugin-ci.yml@main` (moving branch, `secrets: inherit`, `id-token: write`). Repo secrets list is empty today, so Medium not High. Opus + parent. |
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
@@ -130,6 +129,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | Issue | Area | Resolved by |
 |-------|------|-------------|
 | V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | [PR #67](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/67) first-letter username constraint and `--` separator |
+| S1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Protected elevated `system_*` roles | [PR #68](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/68) |
 | [#60](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/60) | Authz `IsSystemAdmin` substring | [PR #61](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/61) exact token match |
 | [#37](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/37) | JSON body limits / channel authz order | [PR #43](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/43) |
 | [#38](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/38) | Audit TargetID / actor / prune | [PR #44](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/44) |
@@ -204,6 +204,10 @@ Pinned `brace-expansion` to 1.1.18 / 2.1.4 and `nanoid` to 3.3.17; refreshed `we
 ### 2026-08-12 — R2/C3 release workflow remediation
 
 Tracking: [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63). Release checkout no longer persists the write token, npm lifecycle scripts are disabled, and `go test ./server/...` gates `make dist`. Resolved R2 and C3; R3 remains open.
+
+### 2026-08-12 — S1 elevated system role protection
+
+`isProtected` now protects every elevated `system_*` role token while allowing the normal `system_user` and `system_guest` roles. Added a table-driven authorization matrix covering standalone and combined role lists.
 
 ## Review procedure
 
