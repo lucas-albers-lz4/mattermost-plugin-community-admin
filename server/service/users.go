@@ -62,12 +62,16 @@ func newUserServiceForTest(users userAPI, teams teamUsersAPI, channels channelUs
 
 func defaultChangePassword(ctx context.Context, username, hashedPassword string) error {
 	// Pass bcrypt hash via --hashed so plaintext never appears in process argv /proc/cmdline.
-	cmd := exec.CommandContext(ctx, mmctlPath, "--local", "user", "change-password", username, "--password", hashedPassword, "--hashed") //nolint:gosec // controlled local mmctl; see SECURITY.md
+	cmd := exec.CommandContext(ctx, mmctlPath, changePasswordArgs(username, hashedPassword)...) //nolint:gosec // controlled local mmctl; see SECURITY.md
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("mmctl change-password failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 	return nil
+}
+
+func changePasswordArgs(username, hashedPassword string) []string {
+	return []string{"--local", "user", "change-password", "--", username, "--password", hashedPassword, "--hashed"}
 }
 
 type CreateUserRequest struct {

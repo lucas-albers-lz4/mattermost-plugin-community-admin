@@ -1,6 +1,6 @@
 """Z3 proof: mattermost-plugin-community-admin username whitelist.
 
-Pattern: `^[a-z0-9._-]+$` (server/service/password.go:14), enforced by
+Pattern: `^[a-z][a-z0-9._-]*$` (server/service/password.go:14), enforced by
 ValidateUsername() at the user-creation and batch-import boundaries
 (users.go:42,122; batch.go:97).
 
@@ -10,7 +10,9 @@ SMS text lines, LDAP/syslog output)? If unsat -> no such input exists.
 
 Per the z3-regex skill: containment proofs are alphabet-trivial. The
 whitelist alphabet is {a-z0-9._-}; prove each dangerous char is NOT in
-the language of accepted strings. Length bounds not needed.
+the language of accepted strings. Length bounds not needed. The
+first-character constraint separately proves that flag-like and
+digit-leading usernames are rejected.
 """
 from z3 import *
 
@@ -48,18 +50,38 @@ DANGEROUS = {
     "question": "?",
 }
 
+INVALID_USERNAMES = {
+    "leading password flag": "--password",
+    "leading help flag": "-h",
+    "only flags": "--",
+    "leading digit": "1child",
+}
+
 def main():
     s = String("s")
     c = String("c")
-    # Whitelist token alphabet: [a-z0-9._-]  (from ^[a-z0-9._-]+$)
+    # Whitelist token alphabet: [a-z0-9._-] (from ^[a-z][a-z0-9._-]*$)
     wl_cls = Union(
         Range("a", "z"), Range("0", "9"), Re("."), Re("_"), Re("-")
     )
+    username_re = Concat(Range("a", "z"), Star(wl_cls))
 
     # Alphabet-disjointness form (instant per the z3 skill): a single char
     # accepted by the token alphabet cannot be a dangerous char.
     # InRe(c, wl_cls) ∧ Length(c)==1 ∧ c == "<bad>"  →  unsat means excluded.
     failures = []
+    for name, username in INVALID_USERNAMES.items():
+        solver = Solver()
+        solver.set("timeout", 30000)
+        solver.add(InRe(s, username_re))
+        solver.add(s == StringVal(username))
+        r = solver.check()
+        if r == unsat:
+            print(f"[PASS] {name}: '{username}' rejected")
+        else:
+            print(f"[FAIL] {name}: '{username}' accepted ({r})")
+            failures.append(name)
+
     for name, ch in DANGEROUS.items():
         solver = Solver()
         solver.set("timeout", 30000)
@@ -93,8 +115,8 @@ def main():
     if failures:
         print(f"RESULT: FAIL ({len(failures)} violations: {', '.join(failures)})")
         raise SystemExit(1)
-    print("RESULT: PASS — whitelist alphabet is exactly [a-z0-9._-]; "
-          "no dangerous char is reachable in any accepted username")
+    print("RESULT: PASS — whitelist is ^[a-z][a-z0-9._-]*$; "
+          "no dangerous char or leading flag is reachable")
 
 
 if __name__ == "__main__":

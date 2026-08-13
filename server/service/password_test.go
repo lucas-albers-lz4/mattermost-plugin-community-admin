@@ -9,9 +9,32 @@ import (
 )
 
 func TestValidateUsername(t *testing.T) {
-	require.NoError(t, ValidateUsername("child.example"))
-	require.Error(t, ValidateUsername("BadUser"))
-	require.Error(t, ValidateUsername("has space"))
+	tests := []struct {
+		name     string
+		username string
+		valid    bool
+	}{
+		{name: "valid", username: "child.example", valid: true},
+		{name: "valid with digits and punctuation", username: "child2._-example", valid: true},
+		{name: "uppercase", username: "BadUser"},
+		{name: "space", username: "has space"},
+		{name: "leading password flag", username: "--password"},
+		{name: "leading help flag", username: "-h"},
+		{name: "only flags", username: "--"},
+		{name: "leading digit", username: "1child"},
+		{name: "empty", username: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateUsername(tt.username)
+			if tt.valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
 }
 
 func TestGeneratePassword(t *testing.T) {
