@@ -147,8 +147,8 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | [#56](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/56) | Dependabot fast-uri / postcss | [PR #55](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/55) |
 | Dependabot 117 / js-yaml CVE-2026-59870 | Webapp override | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) |
 | R4 | Dev-scope npm CVEs | [PR #65](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/65) — `brace-expansion` 1.1.18 / 2.1.4 and `nanoid` 3.3.17 overrides with refreshed lockfile |
-| R2 | Release TCB credentials and lifecycle scripts | PR #TBD — checkout credentials disabled; npm lifecycle scripts disabled |
-| C3 | False-green release | PR #TBD — server tests run before `make dist` |
+| R2 | Release TCB credentials and lifecycle scripts | [PR #66](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/66) — checkout credentials disabled; npm lifecycle scripts disabled |
+| C3 | False-green release | [PR #66](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/66) — server tests run before `make dist` |
 | Z3 username alphabet | Injection alphabet | [PR #59](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/59) (scope: chars only) |
 
 ## Accepted residuals
