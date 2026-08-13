@@ -626,6 +626,22 @@ func parsePagination(r *http.Request, defaultPage, defaultPerPage int) (page, pe
 	return page, perPage
 }
 
+func adminPaginationBounds(page, perPage, length int) (start, end int) {
+	if page <= length/perPage {
+		start = page * perPage
+	} else {
+		start = length
+	}
+	if start == length {
+		return start, start
+	}
+	end = start + perPage
+	if end > length {
+		end = length
+	}
+	return start, end
+}
+
 func adminUserDTO(u *model.User) map[string]string {
 	if u == nil {
 		return nil
@@ -692,7 +708,7 @@ func (p *Plugin) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err != nil {
-		p.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		p.writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -713,12 +729,11 @@ func (p *Plugin) handleAdminListTeams(w http.ResponseWriter, r *http.Request) {
 
 	teams, err := p.client.Team.List()
 	if err != nil {
-		p.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		p.writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	start := min(page*perPage, len(teams))
-	end := min(start+perPage, len(teams))
+	start, end := adminPaginationBounds(page, perPage, len(teams))
 	pageTeams := teams[start:end]
 
 	out := make([]map[string]string, 0, len(pageTeams))
@@ -745,7 +760,7 @@ func (p *Plugin) handleAdminListTeamChannels(w http.ResponseWriter, r *http.Requ
 	for {
 		list, err := p.client.Channel.ListPublicChannelsForTeam(teamID, page, 200)
 		if err != nil {
-			p.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			p.writeError(w, err, http.StatusInternalServerError)
 			return
 		}
 		if len(list) == 0 {

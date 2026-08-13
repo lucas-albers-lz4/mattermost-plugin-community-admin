@@ -17,13 +17,16 @@ ORG_USER="${ORGANIZER_USERNAME:-test.organizer}"
 ORG_PASS="${ORGANIZER_PASSWORD:?Set ORGANIZER_PASSWORD in e2e/.env}"
 NON_USER="${NON_ORGANIZER_USERNAME:-testuser.beta}"
 NON_PASS="${NON_ORGANIZER_PASSWORD:?Set NON_ORGANIZER_PASSWORD in e2e/.env}"
+LOGIN_BODY=$(mktemp "${TMPDIR:-/tmp}/mm-login-body.XXXXXX")
+trap 'rm -f "$LOGIN_BODY"' EXIT
 
 login() {
   local user=$1 pass=$2
-  curl -sS -X POST "${BASE_URL}/api/v4/users/login" \
+  printf '{"login_id":"%s","password":"%s"}' "$user" "$pass" |
+    curl -sS -X POST "${BASE_URL}/api/v4/users/login" \
     -H 'Content-Type: application/json' \
-    -d "{\"login_id\":\"${user}\",\"password\":\"${pass}\"}" \
-    -D - -o /tmp/mm-login-body.json | awk 'BEGIN{IGNORECASE=1} /^token:/{sub(/\r/,""); print $2}' | head -1
+    --data-binary @- -D - -o "$LOGIN_BODY" |
+    awk 'BEGIN{IGNORECASE=1} /^token:/{sub(/\r/,""); print $2}' | head -1
 }
 
 plugin_get() {
@@ -55,7 +58,7 @@ echo "=== Community Admin API smoke (${BASE_URL}) ==="
 
 ORG_TOKEN=$(login "$ORG_USER" "$ORG_PASS")
 [ -n "$ORG_TOKEN" ] || fail "organizer login"
-ORG_ID=$(python3 -c "import json; print(json.load(open('/tmp/mm-login-body.json'))['id'])")
+ORG_ID=$(python3 -c "import json; print(json.load(open('${LOGIN_BODY}'))['id'])")
 pass "A3-prep: organizer login (${ORG_USER})"
 
 NON_TOKEN=$(login "$NON_USER" "$NON_PASS")
@@ -99,7 +102,7 @@ split_response "$(plugin_delete "$ORG_TOKEN" "/users/${NEW_ID}/teams/414hzzpgr3d
 pass "A5: remove from team OK"
 
 split_response "$(plugin_post "$ORG_TOKEN" "/users/${ORG_ID}/reset-password" "{}")"
-[ "$CODE" = "403" ] && pass "A7: reset organizer self blocked" || echo "WARN: protected target reset returned ${CODE}"
+[ "$CODE" = "403" ] && pass "A7: reset organizer self blocked" || fail "A7: protected target reset returned ${CODE}"
 
 split_response "$(plugin_post "$ORG_TOKEN" "/users" "{\"username\":\"Bad User!\",\"first_name\":\"X\",\"last_name\":\"Y\"}")"
 [ "$CODE" = "400" ] || [ "$CODE" = "403" ] || [ "$CODE" = "500" ] && pass "A7: invalid username rejected (${CODE})" || fail "A7: invalid username expected error got ${CODE}"
