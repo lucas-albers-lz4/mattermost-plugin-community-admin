@@ -30,6 +30,18 @@ func TestParsePagination(t *testing.T) {
 	assert.Equal(t, 50, perPage)
 }
 
+func TestAdminPaginationBoundsAvoidsOverflow(t *testing.T) {
+	t.Parallel()
+
+	start, end := adminPaginationBounds(int(^uint(0)>>1), 200, 3)
+	assert.Equal(t, 3, start)
+	assert.Equal(t, 3, end)
+
+	start, end = adminPaginationBounds(1, 2, 3)
+	assert.Equal(t, 2, start)
+	assert.Equal(t, 3, end)
+}
+
 func TestAdminDTOs(t *testing.T) {
 	t.Parallel()
 

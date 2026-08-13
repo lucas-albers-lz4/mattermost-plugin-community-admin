@@ -21,8 +21,8 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Surface | Where | Last reviewed | Open findings |
 |---------|-------|---------------|---------------|
 | Authz checker | `server/authz/` | 2026-08-12 (S1 remediation) | none new |
-| HTTP API + errors | `server/api.go`, `api_handlers.go` | 2026-08-12 | V4 |
-| Password / mmctl | `server/service/users.go`, `password.go` | 2026-08-13 | V5 |
+| HTTP API + errors | `server/api.go`, `api_handlers.go` | 2026-08-12 | none new |
+| Password / mmctl | `server/service/users.go`, `password.go` | 2026-08-12 | none new |
 | Audit + rate-limit KV | `server/service/audit.go` | 2026-08-12 | I3 |
 | Batch import | `server/service/batch.go` | 2026-08-12 | none new (I5 deferred #36) |
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
@@ -30,7 +30,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Webapp RHS / ScopeEditor | `webapp/src/` | 2026-08-12 (Opus XSS sweep) | W1 (CSRF header only) |
 | CI / release | `.github/workflows/` | 2026-08-13 (R1/C2 remediation) | R3, C1 |
 | Z3 username proof | `proof_username_whitelist.py` | 2026-08-13 (P1 remediation) | V2 |
-| e2e / smoke | `e2e/` | 2026-08-12 (Opus) | C4, E1–E3 |
+| e2e / smoke | `e2e/` | 2026-08-12 | none new |
 
 ## How to re-verify
 
@@ -61,9 +61,9 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Private channels via wildcard | `HasChannel` wildcard only when `channelIsOpen`; `GetChannelScope` uses `ChannelTypeOpen` | host | `TestHasChannelWildcardRequiresOpen` · `TestGetChannelScopeOpenAndPrivate` |
 | Channel ID existence oracle | missing channel → same 403 as out-of-scope | host | `handleAddChannelMember` |
 | Username → shell metachar / argv flags | charset `^[a-z][a-z0-9._-]*$` at create, batch, **and** reset; `exec.CommandContext` argv (no shell) with `--` before username | host | `TestValidateUsername` · `TestChangePasswordArgsSeparateUsernameFromFlags` · Z3 `proof_username_whitelist.py` |
-| Password on `/proc` cmdline | bcrypt `--hashed`; plaintext generated server-side; HTTP create does not accept client password | manual | `users.go:63-71` · `handleCreateUser` omits `Password` — **real mmctl argv untested, V5** |
+| Password on `/proc` cmdline | bcrypt `--hashed`; plaintext generated server-side; HTTP create does not accept client password | manual | `users.go:63-71` · `handleCreateUser` omits `Password` — live mmctl argv remains untested; argument shape is host-tested |
 | Password in audit/KV | `AuditEntry` has no password field; `recordAudit` never copies `result.Password` | host | struct + `TestResetPasswordSuccess` (stub) |
-| mmctl stderr to organizer | `writeError` redacts `status >= 500` to `internal error`; slash returns generic text | host | `api_handlers.go:46-49` — **admin list helpers bypass this, V4** |
+| mmctl stderr to organizer | `writeError` redacts `status >= 500` to `internal error`; slash returns generic text | host | `api_handlers.go:46-49` and admin list handlers |
 | XSS in RHS / ScopeEditor | React JSX; no `dangerouslySetInnerHTML` / `innerHTML` | manual | sweep 2026-08-12 |
 | e2e panel hook | `__communityAdminOpenPanel` only shows RHS; `PanelWrapper` still `GET /me` | manual | `webapp/src/index.tsx:29-56` |
 | CSRF | `X-Requested-With` + Mattermost cookie CSRF; empty `Mattermost-User-Id` → 401 | manual | Opus: not exploitable today; **W1** if `ExperimentalStrictCSRFEnforcement` |
@@ -98,7 +98,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Action major tags (`@v5`, `@v2`) | fleet won't-fix (CodeQL alert 3 dismissed) | manual | same as regexproof |
 | Z3 proof in merge gate | `username-proof` CI job, `make proof-username`, and staged-change pre-commit hook when `z3` is importable | host | `python3 proof_username_whitelist.py` |
 | Required status checks | **none** on `master` | — | **C1 open** |
-| e2e secrets | `e2e/.env` gitignored | manual | `.gitignore` — **E1–E3** still open on the smoke script / example |
+| e2e secrets | `e2e/.env` gitignored; login body uses a restricted `mktemp` file and password is piped to curl stdin | manual | `e2e/scripts/api-smoke.sh`, `e2e/.env.example` |
 | js-yaml CVE-2026-59870 | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) merged | manual | override `4.3.1`; lockfile has one `4.3.1` |
 
 ## Open findings
@@ -110,13 +110,8 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
 | C1 | Medium | False-green | `master` has no required status checks and no required PR reviews. Opus (`GET /branches/master/protection`). |
 | V2 | Low | Ledger honesty | Z3 proves alphabet disjointness only, not argv/`cobra` semantics or length. Do not cite as “username injection impossible.” |
-| V4 | Low | Error redaction | Admin list handlers return `err.Error()` on 500 (`api_handlers.go` ~693/714/746). Sysadmin-only. |
-| V5 | Low | False-green | `TestResetPasswordSuccess` stubs `changePassword`; live `defaultChangePassword` argv is `manual`. |
 | I3 | Low | Audit KV | Entry `Set` then index CAS; crash orphans an unlistable key. |
 | I6 | Low | List amplification | `SearchInTeams` applies `per_page` per team. Organizer-trusted. |
-| I7 | Low | Admin pagination | `page*perPage` can overflow; sysadmin-only. |
-| C4 | Low | Smoke false-green | `api-smoke.sh` A7 protected-target check `echo WARN` instead of `fail`. Opus. |
-| E1–E3 | Low | e2e secrets | `/tmp/mm-login-body.json`; passwords on curl argv; `.env.example` has live hostname + usernames. Lab-only. Opus. |
 | R5 | Low | Deploy hygiene | Documented client-bundle copy is never removed on plugin delete. Opus. |
 | W1 | Low | Webapp CSRF | Only `X-Requested-With`, not `X-CSRF-Token`. Not exploitable today; breaks if strict CSRF is enabled. Opus. |
 
@@ -125,6 +120,11 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | Issue | Area | Resolved by |
 |-------|------|-------------|
 | V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | [PR #67](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/67) first-letter username constraint and `--` separator |
+| V4 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Admin list error redaction | This PR — list handlers now use `writeError` for 500s |
+| V5 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl argv false-green | This PR — existing `TestChangePasswordArgsSeparateUsernameFromFlags` asserts the production argument shape; live mmctl remains a manual gap |
+| I7 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Admin pagination overflow | This PR — overflow-safe bounds helper and unit test |
+| C4 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Smoke protected-target false-green | This PR — A7 now fails on any status other than 403 |
+| E1–E3 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | e2e secret hygiene | This PR — mktemp cleanup, stdin login body, and scrubbed example hostname |
 | S1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Protected elevated `system_*` roles | [PR #68](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/68) |
 | I2 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | HTTP audit failures are logged | [PR #69](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/69) |
 | [#60](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/60) | Authz `IsSystemAdmin` substring | [PR #61](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/61) exact token match |
@@ -220,6 +220,16 @@ Pinned the reusable `plugin-ci` workflow to commit
 nightly schedule, and wired `proof_username_whitelist.py` into a Z3-backed CI
 job, the Makefile, and the staged-change pre-commit hook. C1 remains open
 because branch protection is an operator setting; R3 remains open.
+
+### 2026-08-12 — Low-severity hardening (V4, C4, E1–E3, I7, V5)
+
+Admin list 500 responses now use the shared redacting error writer, and team
+pagination avoids integer multiplication overflow. The API smoke test now
+fails closed for the protected-target check; its login response uses a
+restricted temporary file with cleanup, credentials are sent through stdin,
+and the example endpoint uses a placeholder hostname. V5 is partially proven
+by the existing production-shape argv unit test; live mmctl execution remains
+manual.
 
 ## Review procedure
 
