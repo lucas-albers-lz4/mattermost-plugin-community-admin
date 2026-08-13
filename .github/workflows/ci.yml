@@ -1,7 +1,5 @@
 name: ci
 on:
-  schedule:
-    - cron: "0 0 * * *"
   push:
     branches:
       - master
@@ -15,5 +13,17 @@ permissions:
 
 jobs:
   plugin-ci:
-    uses: mattermost/actions-workflows/.github/workflows/plugin-ci.yml@main
+    # Pinned 2026-08-13; update this SHA intentionally rather than using @main.
+    uses: mattermost/actions-workflows/.github/workflows/plugin-ci.yml@86a78bd5bf6e009254bd0e23e316601d9d0db472
     secrets: inherit
+
+  username-proof:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Z3
+        run: python3 -m pip install z3-solver
+      - name: Verify username whitelist
+        run: python3 proof_username_whitelist.py
