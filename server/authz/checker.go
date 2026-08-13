@@ -47,7 +47,7 @@ func IsSystemAdmin(roles string) bool {
 }
 
 func hasElevatedSystemRole(roles string) bool {
-	for _, role := range strings.Fields(roles) {
+	for role := range strings.FieldsSeq(roles) {
 		if strings.HasPrefix(role, "system_") && role != "system_user" && role != "system_guest" {
 			return true
 		}
