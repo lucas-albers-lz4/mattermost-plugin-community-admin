@@ -31,7 +31,8 @@ STAGED_PROOF="$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^pro
 if [ -n "$STAGED_PROOF" ]; then
   if command -v python3 >/dev/null 2>&1 && python3 -c 'import z3' >/dev/null 2>&1; then
     info "username whitelist Z3 proof"
-    make proof-username || fail "username whitelist Z3 proof"
+    # Call the script directly (not `make`) so proof does not require go/npm via setup.mk.
+    python3 proof_username_whitelist.py || fail "username whitelist Z3 proof"
   else
     info "Z3 not installed — skipping username whitelist proof (optional; install z3-solver to enable)"
   fi
