@@ -71,7 +71,9 @@ func defaultChangePassword(ctx context.Context, username, hashedPassword string)
 }
 
 func changePasswordArgs(username, hashedPassword string) []string {
-	return []string{"--local", "user", "change-password", "--", username, "--password", hashedPassword, "--hashed"}
+	// Flags before `--`; username after so a leading-dash name cannot be parsed as a flag,
+	// and `--password` / `--hashed` remain real flags (Cobra treats post-`--` args as positionals).
+	return []string{"--local", "user", "change-password", "--password", hashedPassword, "--hashed", "--", username}
 }
 
 type CreateUserRequest struct {

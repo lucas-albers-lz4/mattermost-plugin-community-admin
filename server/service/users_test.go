@@ -193,9 +193,11 @@ func TestChangePasswordArgsSeparateUsernameFromFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			args := changePasswordArgs(tt.username, "$2b$hash")
 			require.Equal(t, []string{
-				"--local", "user", "change-password", "--",
-				tt.username, "--password", "$2b$hash", "--hashed",
+				"--local", "user", "change-password",
+				"--password", "$2b$hash", "--hashed", "--", tt.username,
 			}, args)
+			require.Equal(t, tt.username, args[len(args)-1])
+			require.Equal(t, "--", args[len(args)-2])
 		})
 	}
 }
