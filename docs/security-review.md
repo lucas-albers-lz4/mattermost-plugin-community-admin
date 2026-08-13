@@ -28,7 +28,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
 | ScopeConfig parse/cache | `server/configuration.go`, `config/schema.go` | 2026-08-12 | I1 documented residual |
 | Webapp RHS / ScopeEditor | `webapp/src/` | 2026-08-12 (Opus XSS sweep) | W1 (CSRF header only) |
-| CI / release | `.github/workflows/` | 2026-08-13 (R1/C2 remediation) | R3, C1 |
+| CI / release | `.github/workflows/` | 2026-08-13 (C1 ops) | R3 |
 | Z3 username proof | `proof_username_whitelist.py` | 2026-08-13 (P1 remediation) | V2 |
 | e2e / smoke | `e2e/` | 2026-08-12 | none new |
 
@@ -97,7 +97,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Dev-scope npm CVEs | `webapp/package.json` overrides pin patched versions; lockfile refreshed and verified with `npm ls` | host | `cd webapp && npm ls brace-expansion nanoid` |
 | Action major tags (`@v5`, `@v2`) | fleet won't-fix (CodeQL alert 3 dismissed) | manual | same as regexproof |
 | Z3 proof in merge gate | `username-proof` CI job, `make proof-username`, and staged-change pre-commit hook when `z3` is importable | host | `python3 proof_username_whitelist.py` |
-| Required status checks | **none** on `master` | — | **C1 open** |
+| Required status checks | `plugin-ci / lint|test|build` + `username-proof` required on `master` (strict; enforce_admins); no required human reviews | manual | `gh api .../branches/master/protection` |
 | e2e secrets | `e2e/.env` gitignored; login body uses a restricted `mktemp` file and password is piped to curl stdin | manual | `e2e/scripts/api-smoke.sh`, `e2e/.env.example` |
 | js-yaml CVE-2026-59870 | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) merged | manual | override `4.3.1`; lockfile has one `4.3.1` |
 
@@ -108,7 +108,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | ID | Sev | Area | Notes |
 |----|-----|------|-------|
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
-| C1 | Medium | False-green | `master` has no required status checks and no required PR reviews. Opus (`GET /branches/master/protection`). |
 | V2 | Low | Ledger honesty | Z3 proves alphabet disjointness only, not argv/`cobra` semantics or length. Do not cite as “username injection impossible.” |
 | I3 | Low | Audit KV | Entry `Set` then index CAS; crash orphans an unlistable key. |
 | I6 | Low | List amplification | `SearchInTeams` applies `per_page` per team. Organizer-trusted. |
@@ -120,6 +119,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | Issue | Area | Resolved by |
 |-------|------|-------------|
 | V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | [PR #67](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/67) first-letter username constraint and `--` separator |
+| C1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Required status checks on master | Ops 2026-08-13 — `gh api` branch protection: plugin-ci lint/test/build + username-proof; no required reviews |
 | V4 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Admin list error redaction | This PR — list handlers now use `writeError` for 500s |
 | V5 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl argv false-green | This PR — existing `TestChangePasswordArgsSeparateUsernameFromFlags` asserts the production argument shape; live mmctl remains a manual gap |
 | I7 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Admin pagination overflow | This PR — overflow-safe bounds helper and unit test |
@@ -169,6 +169,10 @@ Do not re-open without new evidence.
 | Organizer is a delegated admin | Intended privilege (create users, reset in-scope passwords) is not a finding. |
 
 ## Audit history
+
+### 2026-08-13 — C1 required status checks (ops)
+
+Set `master` branch protection: required checks `plugin-ci / lint`, `plugin-ci / test`, `plugin-ci / build`, `username-proof` (strict, enforce_admins). No required PR reviews (autonomous merge). Closes ledger **C1**.
 
 ### 2026-07-29 — Security audit stack (PRs #30–#35)
 
