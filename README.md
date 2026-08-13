@@ -103,6 +103,7 @@ Full reference: [docs/configuration.md](docs/configuration.md)
 | **Operators / devs** | [Operations](docs/operations.md) — deploy, upgrade, troubleshooting |
 | **Developers** | [Design](docs/design.md) — architecture, API, authz |
 | **Developers** | [Testing](docs/testing.md) — API smoke, Playwright e2e, manual checklist |
+| **Reviewers** | [Security ledger](docs/security-review.md) — coverage map, controls, open findings |
 | **Everyone** | [FAQ](docs/FAQ.md) — common questions and answers |
 
 See [docs/README.md](docs/README.md) for the full documentation index.

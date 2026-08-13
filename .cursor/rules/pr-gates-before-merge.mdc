@@ -1,0 +1,41 @@
+---
+description: CI + Bugbot + security-review required before merge in autonomous PR cycles
+alwaysApply: true
+---
+
+# PR cycle: CI, Bugbot, and security-review before merge
+
+When creating and merging pull requests in an agent-driven cycle (create → CI → merge) **without waiting for human review**, treat the following as required gates for every non-trivial PR (and for docs that introduce or change the security ledger / audit process).
+
+## Required sequence
+
+1. Open or update the PR; wait for **CI** to go green.
+   **Presence, not just green:** expected `plugin-ci` jobs (`lint`, `test`, `build`) must appear in `gh pr checks`. A rollup that only shows CodeQL is *not* green.
+2. Ensure the PR head branch is checked out locally.
+3. Run Bugbot via the `review-bugbot` skill / `bugbot` subagent on **branch changes**.
+4. Run security-review via the `review-security` skill / `security-review` subagent on **branch changes**.
+   Custom instruction when the PR remediates ledger findings: “against ledger IDs in this PR; do not reopen residuals.”
+5. If either review reports findings: **fix them** (or explicitly document a false positive), push, re-run the failing gate once after substantive fixes.
+6. Only then merge (`gh pr merge` with the repo’s usual strategy). Do not merge with unresolved Bugbot or security-review findings.
+
+## Non-trivial vs trivial
+
+**Trivial** (Bugbot + security-review optional — may merge after CI green):
+
+- Docs-only typos, badge/link/metadata, single-line comment, pure formatting with no logic change
+
+**Non-trivial** (all three gates **required**):
+
+- Any new/changed logic, tests, CI/workflows, authz, mmctl/password, audit KV, ScopeConfig, or security ledger/process files
+- Multi-file features or refactors
+
+If unsure, treat as non-trivial.
+
+## Do not
+
+- Merge a non-trivial PR solely because CI is green and no human commented
+- Treat “listed checks passed” as sufficient when expected `plugin-ci` jobs are **absent**
+- Skip Bugbot or security-review because “we just ran tests locally”
+- Rely on AGENTS.md alone for this gate — this Cursor rule is the merge-cycle source of truth
+
+Security review state: [docs/security-review.md](docs/security-review.md).

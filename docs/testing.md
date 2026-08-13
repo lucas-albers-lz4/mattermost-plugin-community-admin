@@ -9,6 +9,7 @@ Run manually before tagging or shipping a release tarball. Not scheduled CI/nigh
 3. Install the tarball on the test instance; run `e2e/scripts/api-smoke.sh`
 4. `cd e2e && npm test` (Playwright panel flows)
 5. Spot-check manual A6–A8 below if slash commands or admin console changed
+6. If the release touched authz, mmctl/password, audit, ScopeConfig, or workflows, confirm [security-review.md](security-review.md) coverage-map dates and open findings are current
 
 Details for the test environment, smoke script, and Playwright setup follow.
 

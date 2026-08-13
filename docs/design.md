@@ -2,6 +2,8 @@
 
 Target platform: Mattermost 11.x Team / Entry Edition (validated on 11.8.2).
 
+Security review state (what was checked / proven / still open): [security-review.md](security-review.md).
+
 ## API validation summary
 
 | Capability | Plugin API | Decision |

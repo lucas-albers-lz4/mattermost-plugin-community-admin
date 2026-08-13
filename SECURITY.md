@@ -1,5 +1,7 @@
 # Security Policy
 
+Audit ledger (what was checked, proven, fixed, still open): [docs/security-review.md](docs/security-review.md). Start there for the next review.
+
 ## Plugin privilege model
 
 `com.lalbers.community-admin` runs with Mattermost server-level plugin API privileges.
@@ -29,7 +31,7 @@ undisclosed vulnerabilities.
 ## Operator responsibilities
 
 - Configure organizers by **user ID** in System Console
-- Revoke access by removing organizer entries
+- Revoke access by saving **valid** JSON that omits the organizer (invalid JSON keeps the last-known-good allowlist until restart; see the ledger)
 - Review audit log via `GET /plugins/com.lalbers.community-admin/api/v1/audit` (system admin)
 - Keep break-glass admin scripts available for your deployment
 

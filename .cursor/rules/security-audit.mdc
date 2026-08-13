@@ -1,0 +1,25 @@
+---
+description: Security audit ledger — read first, do not reopen residuals, update in the same PR
+alwaysApply: true
+---
+
+# Security reviews
+
+[docs/security-review.md](docs/security-review.md) is the **single source of truth**. Read it before any security audit or before changing authz, mmctl/password, audit KV, ScopeConfig, slash commands, or `.github/workflows/`.
+
+## Do
+
+- Start at the coverage map; pick the **oldest** surface. Do not re-read `checker.go` by default.
+- Diff the change against **Controls in force**. New route / mutator / KV write / workflow step needs a named guard, proof class (`host` | `lab` | `manual`), and a proof of that class.
+- Apply the **false-green rule**: stubbed `changePassword` and in-memory `memKV` prove logic only, not live mmctl or plugin KV.
+- State what you **disproved**, not only what you found. Cite `file:line`.
+- Same PR: bump coverage-map dates, move closed rows to Resolved, append **Audit history**.
+
+## Do not
+
+- Reopen [Accepted residuals](docs/security-review.md#accepted-residuals) or the Resolved table without **new evidence**.
+- Re-file CodeQL `actions/unpinned-tag` (fleet won't-fix). `@main` on `plugin-ci.yml` is **R1**, not that residual.
+- Treat organizer-intended powers (in-scope create/reset) as findings.
+- Cite Z3 `proof_username_whitelist.py` as “injection impossible” — alphabet only (**V2**).
+
+Findings use ledger IDs (`R2`, `V1`, `S1`, `I2`, `R1`, `C1`, `P1`). Operator claims: [SECURITY.md](SECURITY.md).

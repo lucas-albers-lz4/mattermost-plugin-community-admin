@@ -14,8 +14,14 @@ Before a release/tag:
 
 Do **not** add nightly e2e CI — ship volume is low; smoke/Playwright are release-time only. Never commit `e2e/.env` or `dist/`.
 
+## Security reviews
+
+[docs/security-review.md](docs/security-review.md) is the **single source of truth** for review state: coverage map, controls with proof class (`host` | `lab` | `manual`), open findings, accepted residuals, and the review procedure. Start there. Do not re-derive scope or reopen residuals without new evidence.
+
+Feature PRs that touch authz, mmctl/password, audit KV, ScopeConfig, or GitHub workflows must update the ledger in the **same PR**. Stubbed mmctl / in-memory KV tests are not proof of the live path (false-green rule). Cursor rule: `.cursor/rules/security-audit.mdc`.
+
 ## Defaults
 
 - Minimal diffs; do not commit or push unless asked
 - Longer guides live under `docs/` — do not duplicate them in README
-- Cursor project rule: `.cursor/rules/project.mdc`
+- Cursor rules: `.cursor/rules/project.mdc`, `.cursor/rules/security-audit.mdc`

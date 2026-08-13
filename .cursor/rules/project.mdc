@@ -33,6 +33,7 @@ Pre-commit runs: gitleaks (staged), go vet, golangci-lint (incl. gosec), go test
 - `server/` — API, authz, mmctl password reset (`EnableLocalMode` required)
 - `webapp/src/` — RHS panel, ScopeEditor; `window.__communityAdminOpenPanel` for e2e only
 - Docs: `docs/`; do not duplicate long guides in README
+- Security ledger: [docs/security-review.md](docs/security-review.md) — see `.cursor/rules/security-audit.mdc`
 
 ## Agent defaults
 
