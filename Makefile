@@ -192,6 +192,11 @@ install-go-tools:
 check-links:
 	lychee --no-progress --exclude "localhost" --exclude "127.0.0.1" README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md docs/ e2e/
 
+## Prove the username whitelist with Z3 (requires z3-solver)
+.PHONY: proof-username
+proof-username:
+	python3 proof_username_whitelist.py
+
 ## Install dev tools for local pre-commit hooks
 .PHONY: install-dev-tools
 install-dev-tools: install-go-tools

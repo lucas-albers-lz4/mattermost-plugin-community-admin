@@ -28,8 +28,8 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
 | ScopeConfig parse/cache | `server/configuration.go`, `config/schema.go` | 2026-08-12 | I1 documented residual |
 | Webapp RHS / ScopeEditor | `webapp/src/` | 2026-08-12 (Opus XSS sweep) | W1 (CSRF header only) |
-| CI / release | `.github/workflows/` | 2026-08-12 (R2/C3 remediation) | R1, R3, C1–C2 |
-| Z3 username proof | `proof_username_whitelist.py` | 2026-08-12 | V2, P1 |
+| CI / release | `.github/workflows/` | 2026-08-13 (R1/C2 remediation) | R3, C1 |
+| Z3 username proof | `proof_username_whitelist.py` | 2026-08-13 (P1 remediation) | V2 |
 | e2e / smoke | `e2e/` | 2026-08-12 (Opus) | C4, E1–E3 |
 
 ## How to re-verify
@@ -90,13 +90,13 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | PR dependency vulns | `dependency-review.yml` on pull_request | manual | workflow |
 | Dependabot security updates | repo setting (version updates disabled, `open-pull-requests-limit: 0`) | manual | `.github/dependabot.yml` |
 | `pull_request_target` | not used | manual | sweep 2026-08-12 |
-| CI reusable workflow pin | **none** — `plugin-ci.yml@main` | — | **R1 open** (`secrets: inherit` currently empty — Medium not High) |
+| CI reusable workflow pin | SHA-pinned `plugin-ci.yml`; bumps require intentional SHA updates | manual | `.github/workflows/ci.yml` |
 | Release job token vs `npm ci` | `actions/checkout@v5` sets `persist-credentials: false`; release install uses `npm ci --ignore-scripts` | manual | `.github/workflows/release.yml` review |
 | False-green release | `go test ./server/...` runs before `make dist` in the release job | host | workflow step; tag publication is blocked when server tests fail |
 | Release checksums | `SHA256SUMS` same-job, unsigned, no provenance | — | **R3 open** |
 | Dev-scope npm CVEs | `webapp/package.json` overrides pin patched versions; lockfile refreshed and verified with `npm ls` | host | `cd webapp && npm ls brace-expansion nanoid` |
 | Action major tags (`@v5`, `@v2`) | fleet won't-fix (CodeQL alert 3 dismissed) | manual | same as regexproof |
-| Z3 proof in merge gate | **not wired** to CI / pre-commit / Makefile | — | **P1 open** |
+| Z3 proof in merge gate | `username-proof` CI job, `make proof-username`, and staged-change pre-commit hook when `z3` is importable | host | `python3 proof_username_whitelist.py` |
 | Required status checks | **none** on `master` | — | **C1 open** |
 | e2e secrets | `e2e/.env` gitignored | manual | `.gitignore` — **E1–E3** still open on the smoke script / example |
 | js-yaml CVE-2026-59870 | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) merged | manual | override `4.3.1`; lockfile has one `4.3.1` |
@@ -107,11 +107,8 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | ID | Sev | Area | Notes |
 |----|-----|------|-------|
-| R1 | Medium | CI TCB | `.github/workflows/ci.yml` uses `mattermost/actions-workflows/.../plugin-ci.yml@main` (moving branch, `secrets: inherit`, `id-token: write`). Repo secrets list is empty today, so Medium not High. Opus + parent. |
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
 | C1 | Medium | False-green | `master` has no required status checks and no required PR reviews. Opus (`GET /branches/master/protection`). |
-| C2 | Medium | False-green | Nightly `schedule` in `ci.yml` is always skipped (upstream `repository_owner == 'mattermost'`). Neutral, never alerts. Opus. |
-| P1 | Medium | Proof gate | `proof_username_whitelist.py` is not invoked by CI, Makefile, or pre-commit. (Renamed from C1 to avoid clashing with Opus C1.) GLM V2 + parent. |
 | V2 | Low | Ledger honesty | Z3 proves alphabet disjointness only, not argv/`cobra` semantics or length. Do not cite as “username injection impossible.” |
 | V4 | Low | Error redaction | Admin list handlers return `err.Error()` on 500 (`api_handlers.go` ~693/714/746). Sysadmin-only. |
 | V5 | Low | False-green | `TestResetPasswordSuccess` stubs `changePassword`; live `defaultChangePassword` argv is `manual`. |
@@ -149,6 +146,9 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | R4 | Dev-scope npm CVEs | [PR #65](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/65) — `brace-expansion` 1.1.18 / 2.1.4 and `nanoid` 3.3.17 overrides with refreshed lockfile |
 | R2 | Release TCB credentials and lifecycle scripts | [PR #66](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/66) — checkout credentials disabled; npm lifecycle scripts disabled |
 | C3 | False-green release | [PR #66](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/66) — server tests run before `make dist` |
+| R1 | CI TCB | This PR — reusable `plugin-ci` workflow pinned to a verified commit SHA |
+| C2 | False-green | This PR — removed the upstream-incompatible no-op nightly schedule |
+| P1 | Proof gate | This PR — wired the Z3 proof into CI, Makefile, and staged-change pre-commit |
 | Z3 username alphabet | Injection alphabet | [PR #59](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/59) (scope: chars only) |
 
 ## Accepted residuals
@@ -163,7 +163,7 @@ Do not re-open without new evidence.
 | Partial create membership rollback (I5) | Explicitly deferred in [#36](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/36). Failed create deactivates the user; leftover memberships stay until cleanup. |
 | Password in organizer HTTP / ephemeral `ParentText` | Product: credential handoff to parents. Never audit/KV/argv. |
 | Local plugin KV audit not tamper-evident | System admin / host root can rewrite KV. Operational log only. |
-| Floating GitHub Action **major tags** | Fleet standard; CodeQL `actions/unpinned-tag` dismissed 2026-08-09. **`@main` on the reusable plugin-ci workflow is not this residual — that is R1.** |
+| Floating GitHub Action **major tags** | Fleet standard; CodeQL `actions/unpinned-tag` dismissed 2026-08-09. The reusable `plugin-ci` workflow's former `@main` pin was R1 and is now resolved. |
 | Lab e2e not in default CI | Low ship volume; `AGENTS.md` / `docs/testing.md`. |
 | Mattermost session CSRF | Platform; plugin does not add a second token. |
 | Organizer is a delegated admin | Intended privilege (create users, reset in-scope passwords) is not a finding. |
@@ -212,6 +212,14 @@ Tracking: [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-
 ### 2026-08-12 — I2 HTTP audit failure logging
 
 HTTP `recordAudit` now logs `Record` errors using the same non-failing warning pattern as slash commands, preserving mutation availability while making audit loss observable.
+
+### 2026-08-13 — R1/C2/P1 CI proof-gate remediation
+
+Pinned the reusable `plugin-ci` workflow to commit
+`86a78bd5bf6e009254bd0e23e316601d9d0db472`, removed the upstream-incompatible
+nightly schedule, and wired `proof_username_whitelist.py` into a Z3-backed CI
+job, the Makefile, and the staged-change pre-commit hook. C1 remains open
+because branch protection is an operator setting; R3 remains open.
 
 ## Review procedure
 

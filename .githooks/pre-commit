@@ -26,6 +26,16 @@ gitleaks protect --staged --verbose --config "$ROOT/.gitleaks.toml" \
 
 STAGED_GO="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.go$' || true)"
 STAGED_GO_META="$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^go\.(mod|sum)$|\.golangci\.yml$)' || true)"
+STAGED_PROOF="$(git diff --cached --name-only --diff-filter=ACM | grep -E '(^proof_username_whitelist\.py$|^server/service/password\.go$)' || true)"
+
+if [ -n "$STAGED_PROOF" ]; then
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'import z3' >/dev/null 2>&1; then
+    info "username whitelist Z3 proof"
+    make proof-username || fail "username whitelist Z3 proof"
+  else
+    info "Z3 not installed — skipping username whitelist proof (optional; install z3-solver to enable)"
+  fi
+fi
 
 if [ -z "$STAGED_GO" ] && [ -z "$STAGED_GO_META" ]; then
   info "no staged Go changes — skipping Go checks"
