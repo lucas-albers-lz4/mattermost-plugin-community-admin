@@ -28,7 +28,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
 | ScopeConfig parse/cache | `server/configuration.go`, `config/schema.go` | 2026-08-12 | I1 documented residual |
 | Webapp RHS / ScopeEditor | `webapp/src/` | 2026-08-12 (Opus XSS sweep) | W1 (CSRF header only) |
-| CI / release | `.github/workflows/` | 2026-08-12 (Opus) | R1, **R2**, R3, C1–C3 |
+| CI / release | `.github/workflows/` | 2026-08-12 (R2/C3 remediation) | R1, R3, C1–C2 |
 | Z3 username proof | `proof_username_whitelist.py` | 2026-08-12 | V2, P1 |
 | e2e / smoke | `e2e/` | 2026-08-12 (Opus) | C4, E1–E3 |
 
@@ -91,7 +91,8 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Dependabot security updates | repo setting (version updates disabled, `open-pull-requests-limit: 0`) | manual | `.github/dependabot.yml` |
 | `pull_request_target` | not used | manual | sweep 2026-08-12 |
 | CI reusable workflow pin | **none** — `plugin-ci.yml@main` | — | **R1 open** (`secrets: inherit` currently empty — Medium not High) |
-| Release job token vs `npm ci` | **none** — `contents: write` + default `persist-credentials` | — | **R2 open (High)** |
+| Release job token vs `npm ci` | `actions/checkout@v5` sets `persist-credentials: false`; release install uses `npm ci --ignore-scripts` | manual | `.github/workflows/release.yml` review |
+| False-green release | `go test ./server/...` runs before `make dist` in the release job | host | workflow step; tag publication is blocked when server tests fail |
 | Release checksums | `SHA256SUMS` same-job, unsigned, no provenance | — | **R3 open** |
 | Dev-scope npm CVEs | `webapp/package.json` overrides pin patched versions; lockfile refreshed and verified with `npm ls` | host | `cd webapp && npm ls brace-expansion nanoid` |
 | Action major tags (`@v5`, `@v2`) | fleet won't-fix (CodeQL alert 3 dismissed) | manual | same as regexproof |
@@ -106,7 +107,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | ID | Sev | Area | Notes |
 |----|-----|------|-------|
-| R2 | High | Release TCB | `release.yml` `contents: write` + `actions/checkout@v5` default `persist-credentials: true` + `npm ci` (lifecycle scripts) in the same job that uploads the tarball. Compromised transitive **dev** dep can read `.git/config` and rewrite `dist/`. Parent confirmed: no `persist-credentials: false`, no `--ignore-scripts`, no `environment:`. Opus. Fix: `persist-credentials: false`; `npm ci --ignore-scripts` (or split build vs publish jobs). |
 | V1 | Medium | mmctl argv | Leading-dash username (`--password`, `-h`) passes `ValidateUsername`. Mattermost `IsValidUsername` also allows it (`UserNameMinLength=1`, charset includes `-`). `defaultChangePassword` has no `--` before the positional username. Organizer-only; breaks or misparses reset, not shell RCE. Fix: `^[a-z][a-z0-9._-]*$` **or** insert `--` before username. GLM + parent. |
 | S1 | Medium | Protected targets | `isProtected` does not cover `system_user_manager`, `system_manager`, `system_read_only_admin`, and similar. If such a user is fully in organizer scope (`allTeamsSubset`), password reset is allowed. Grok exploit pass. Fix: treat known elevated `system_*` tokens (except `system_user` / `system_guest`) as protected. |
 | I2 | Medium | Audit | HTTP `recordAudit` discards `Record` errors; successful mutations can be unaudited. Slash at least logs. Sol. |
@@ -114,7 +114,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
 | C1 | Medium | False-green | `master` has no required status checks and no required PR reviews. Opus (`GET /branches/master/protection`). |
 | C2 | Medium | False-green | Nightly `schedule` in `ci.yml` is always skipped (upstream `repository_owner == 'mattermost'`). Neutral, never alerts. Opus. |
-| C3 | Medium | False-green | `release.yml` runs no tests and does not `needs:` CI. A `v*` tag publishes regardless. Opus. |
 | P1 | Medium | Proof gate | `proof_username_whitelist.py` is not invoked by CI, Makefile, or pre-commit. (Renamed from C1 to avoid clashing with Opus C1.) GLM V2 + parent. |
 | V2 | Low | Ledger honesty | Z3 proves alphabet disjointness only, not argv/`cobra` semantics or length. Do not cite as “username injection impossible.” |
 | V4 | Low | Error redaction | Admin list handlers return `err.Error()` on 500 (`api_handlers.go` ~693/714/746). Sysadmin-only. |
@@ -148,6 +147,8 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | [#56](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/56) | Dependabot fast-uri / postcss | [PR #55](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/55) |
 | Dependabot 117 / js-yaml CVE-2026-59870 | Webapp override | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) |
 | R4 | Dev-scope npm CVEs | [PR #65](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/65) — `brace-expansion` 1.1.18 / 2.1.4 and `nanoid` 3.3.17 overrides with refreshed lockfile |
+| R2 | Release TCB credentials and lifecycle scripts | [PR #66](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/66) — checkout credentials disabled; npm lifecycle scripts disabled |
+| C3 | False-green release | [PR #66](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/66) — server tests run before `make dist` |
 | Z3 username alphabet | Injection alphabet | [PR #59](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/59) (scope: chars only) |
 
 ## Accepted residuals
@@ -192,6 +193,10 @@ This file is the first in-repo ledger (previously implicit in `SECURITY.md` + cl
 ### 2026-08-12 — R4 npm override remediation
 
 Pinned `brace-expansion` to 1.1.18 / 2.1.4 and `nanoid` to 3.3.17; refreshed `webapp/package-lock.json` and verified the resolved tree in [PR #65](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/65).
+
+### 2026-08-12 — R2/C3 release workflow remediation
+
+Tracking: [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63). Release checkout no longer persists the write token, npm lifecycle scripts are disabled, and `go test ./server/...` gates `make dist`. Resolved R2 and C3; R3 remains open.
 
 ## Review procedure
 

@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@v5
         with:
@@ -24,7 +26,8 @@ jobs:
 
       - name: Build plugin bundle
         run: |
-          cd webapp && npm ci && cd ..
+          cd webapp && npm ci --ignore-scripts && cd ..
+          go test ./server/...
           make dist
 
       - name: Generate checksums
