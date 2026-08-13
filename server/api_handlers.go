@@ -85,7 +85,9 @@ func (p *Plugin) recordAudit(r *http.Request, actorID string, entry service.Audi
 	entry.ActorID = actorID
 	entry.ActorUsername = actorUsername(p.client, actorID)
 	entry.ClientIP = pluginContextIP(r)
-	_ = p.auditService.Record(entry)
+	if err := p.auditService.Record(entry); err != nil {
+		p.API.LogWarn("audit record failed", "action", entry.Action, "error", err.Error())
+	}
 }
 
 func (p *Plugin) handleMe(w http.ResponseWriter, r *http.Request) {

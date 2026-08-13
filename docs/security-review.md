@@ -21,9 +21,9 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Surface | Where | Last reviewed | Open findings |
 |---------|-------|---------------|---------------|
 | Authz checker | `server/authz/` | 2026-08-12 (S1 remediation) | none new |
-| HTTP API + errors | `server/api.go`, `api_handlers.go` | 2026-08-12 | V4, I2 |
+| HTTP API + errors | `server/api.go`, `api_handlers.go` | 2026-08-12 | V4 |
 | Password / mmctl | `server/service/users.go`, `password.go` | 2026-08-13 | V5 |
-| Audit + rate-limit KV | `server/service/audit.go` | 2026-08-12 | I2, I3 |
+| Audit + rate-limit KV | `server/service/audit.go` | 2026-08-12 | I3 |
 | Batch import | `server/service/batch.go` | 2026-08-12 | none new (I5 deferred #36) |
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
 | ScopeConfig parse/cache | `server/configuration.go`, `config/schema.go` | 2026-08-12 | I1 documented residual |
@@ -75,7 +75,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Concurrent create/reset quota | `SetAtomicWithRetries` on `rate_<actor>_<action>_<hour>` | host | `TestCheckAndIncrementConcurrent` (memKV — logic only, not plugin KV) |
 | HTTP + slash + batch share create quota | same action key `create_user` / `reset_password` | host | `api_handlers.go` + `command.go` |
 | Audit index RMW races | CAS on `audit_index`; cap 10k; 90-day prune; List alloc capped 500 (#49) | host | `TestAuditRecordConcurrent` · `TestAuditRecordPrunesExpired` |
-| Audit dropped on KV error | **none** — HTTP `_ = Record(...)` | — | **I2 open** |
+| Audit dropped on KV error | HTTP `recordAudit` logs `Record` errors while preserving the mutation response | manual | `api_handlers.go:88-90` |
 | Audit entry vs index crash window | **none** — `Set` then CAS index | — | **I3 open** |
 | Invalid ScopeConfig live reload | last-known-good parsed allowlist (#39); first-load / process restart → empty organizers | host | `TestApplyParsedScopeConfigKeepsPreviousOnFailure` — **I1 residual** |
 | Batch existing-user enroll | skip; do not mutate membership | host | `TestImportSkipsExistingWithoutMembership` |
@@ -107,7 +107,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | ID | Sev | Area | Notes |
 |----|-----|------|-------|
-| I2 | Medium | Audit | HTTP `recordAudit` discards `Record` errors; successful mutations can be unaudited. Slash at least logs. Sol. |
 | R1 | Medium | CI TCB | `.github/workflows/ci.yml` uses `mattermost/actions-workflows/.../plugin-ci.yml@main` (moving branch, `secrets: inherit`, `id-token: write`). Repo secrets list is empty today, so Medium not High. Opus + parent. |
 | R3 | Medium | Release integrity | `SHA256SUMS` built in the same job as the tarball, unsigned, no provenance. `id-token: write` sits on CI (unused here) instead of release. Opus. |
 | C1 | Medium | False-green | `master` has no required status checks and no required PR reviews. Opus (`GET /branches/master/protection`). |
@@ -130,6 +129,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 |-------|------|-------------|
 | V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | [PR #67](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/67) first-letter username constraint and `--` separator |
 | S1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | Protected elevated `system_*` roles | [PR #68](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/68) |
+| I2 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | HTTP audit failures are logged | [PR #69](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/69) |
 | [#60](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/60) | Authz `IsSystemAdmin` substring | [PR #61](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/61) exact token match |
 | [#37](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/37) | JSON body limits / channel authz order | [PR #43](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/43) |
 | [#38](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/38) | Audit TargetID / actor / prune | [PR #44](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/44) |
@@ -208,6 +208,10 @@ Tracking: [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-
 ### 2026-08-12 — S1 elevated system role protection
 
 `isProtected` now protects every elevated `system_*` role token while allowing the normal `system_user` and `system_guest` roles. Added a table-driven authorization matrix covering standalone and combined role lists.
+
+### 2026-08-12 — I2 HTTP audit failure logging
+
+HTTP `recordAudit` now logs `Record` errors using the same non-failing warning pattern as slash commands, preserving mutation availability while making audit loss observable.
 
 ## Review procedure
 
