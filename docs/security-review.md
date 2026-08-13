@@ -147,7 +147,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 | [#49](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/49) | Audit List alloc | [PR #49](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/49) |
 | [#56](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/56) | Dependabot fast-uri / postcss | [PR #55](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/55) |
 | Dependabot 117 / js-yaml CVE-2026-59870 | Webapp override | [PR #62](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/62) |
-| R4 | Dev-scope npm CVEs | PR TBD — `brace-expansion` 1.1.18 / 2.1.4 and `nanoid` 3.3.17 overrides with refreshed lockfile |
+| R4 | Dev-scope npm CVEs | [PR #65](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/65) — `brace-expansion` 1.1.18 / 2.1.4 and `nanoid` 3.3.17 overrides with refreshed lockfile |
 | Z3 username alphabet | Injection alphabet | [PR #59](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/59) (scope: chars only) |
 
 ## Accepted residuals
@@ -191,7 +191,7 @@ This file is the first in-repo ledger (previously implicit in `SECURITY.md` + cl
 
 ### 2026-08-12 — R4 npm override remediation
 
-Pinned `brace-expansion` to 1.1.18 / 2.1.4 and `nanoid` to 3.3.17; refreshed `webapp/package-lock.json` and verified the resolved tree. PR TBD.
+Pinned `brace-expansion` to 1.1.18 / 2.1.4 and `nanoid` to 3.3.17; refreshed `webapp/package-lock.json` and verified the resolved tree in [PR #65](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/65).
 
 ## Review procedure
 
