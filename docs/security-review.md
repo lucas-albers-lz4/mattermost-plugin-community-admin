@@ -129,7 +129,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | Issue | Area | Resolved by |
 |-------|------|-------------|
-| V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | this PR: first-letter username constraint and `--` separator |
+| V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | [PR #67](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/67) first-letter username constraint and `--` separator |
 | [#60](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/60) | Authz `IsSystemAdmin` substring | [PR #61](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/61) exact token match |
 | [#37](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/37) | JSON body limits / channel authz order | [PR #43](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/43) |
 | [#38](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/38) | Audit TargetID / actor / prune | [PR #44](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/44) |
