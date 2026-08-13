@@ -22,7 +22,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 |---------|-------|---------------|---------------|
 | Authz checker | `server/authz/` | 2026-08-12 (Grok + GLM; #61 token match) | S1 (non-admin system_* roles) |
 | HTTP API + errors | `server/api.go`, `api_handlers.go` | 2026-08-12 | V4, I2 |
-| Password / mmctl | `server/service/users.go`, `password.go` | 2026-08-12 | V1, V5 |
+| Password / mmctl | `server/service/users.go`, `password.go` | 2026-08-13 | V5 |
 | Audit + rate-limit KV | `server/service/audit.go` | 2026-08-12 | I2, I3 |
 | Batch import | `server/service/batch.go` | 2026-08-12 | none new (I5 deferred #36) |
 | Slash commands | `server/command/` | 2026-08-12 | none (parity with HTTP holds) |
@@ -60,7 +60,7 @@ Update the date and findings columns in the same PR as the review. Oldest date i
 | Protected targets | self, bots, exact `system_admin` token, peer organizers, username `calls` | host | matrix + `TestIsSystemAdminTokenBoundary` / fuzz (#61) — **other `system_*` manager roles are S1** |
 | Private channels via wildcard | `HasChannel` wildcard only when `channelIsOpen`; `GetChannelScope` uses `ChannelTypeOpen` | host | `TestHasChannelWildcardRequiresOpen` · `TestGetChannelScopeOpenAndPrivate` |
 | Channel ID existence oracle | missing channel → same 403 as out-of-scope | host | `handleAddChannelMember` |
-| Username → shell metachar | charset `^[a-z0-9._-]+$` at create, batch, **and** reset; `exec.CommandContext` argv (no shell) | host | `TestValidateUsername` · Z3 `proof_username_whitelist.py` — **argv leading-dash is V1, not covered** |
+| Username → shell metachar / argv flags | charset `^[a-z][a-z0-9._-]*$` at create, batch, **and** reset; `exec.CommandContext` argv (no shell) with `--` before username | host | `TestValidateUsername` · `TestChangePasswordArgsSeparateUsernameFromFlags` · Z3 `proof_username_whitelist.py` |
 | Password on `/proc` cmdline | bcrypt `--hashed`; plaintext generated server-side; HTTP create does not accept client password | manual | `users.go:63-71` · `handleCreateUser` omits `Password` — **real mmctl argv untested, V5** |
 | Password in audit/KV | `AuditEntry` has no password field; `recordAudit` never copies `result.Password` | host | struct + `TestResetPasswordSuccess` (stub) |
 | mmctl stderr to organizer | `writeError` redacts `status >= 500` to `internal error`; slash returns generic text | host | `api_handlers.go:46-49` — **admin list helpers bypass this, V4** |
@@ -107,7 +107,6 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | ID | Sev | Area | Notes |
 |----|-----|------|-------|
-| V1 | Medium | mmctl argv | Leading-dash username (`--password`, `-h`) passes `ValidateUsername`. Mattermost `IsValidUsername` also allows it (`UserNameMinLength=1`, charset includes `-`). `defaultChangePassword` has no `--` before the positional username. Organizer-only; breaks or misparses reset, not shell RCE. Fix: `^[a-z][a-z0-9._-]*$` **or** insert `--` before username. GLM + parent. |
 | S1 | Medium | Protected targets | `isProtected` does not cover `system_user_manager`, `system_manager`, `system_read_only_admin`, and similar. If such a user is fully in organizer scope (`allTeamsSubset`), password reset is allowed. Grok exploit pass. Fix: treat known elevated `system_*` tokens (except `system_user` / `system_guest`) as protected. |
 | I2 | Medium | Audit | HTTP `recordAudit` discards `Record` errors; successful mutations can be unaudited. Slash at least logs. Sol. |
 | R1 | Medium | CI TCB | `.github/workflows/ci.yml` uses `mattermost/actions-workflows/.../plugin-ci.yml@main` (moving branch, `secrets: inherit`, `id-token: write`). Repo secrets list is empty today, so Medium not High. Opus + parent. |
@@ -130,6 +129,7 @@ From the 2026-08-12 multi-model pass (Opus 5 supply-chain · Grok 4.6 exploit ·
 
 | Issue | Area | Resolved by |
 |-------|------|-------------|
+| V1 / [#63](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/63) | mmctl username argv injection | [PR #67](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/67) first-letter username constraint and `--` separator |
 | [#60](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/60) | Authz `IsSystemAdmin` substring | [PR #61](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/61) exact token match |
 | [#37](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/37) | JSON body limits / channel authz order | [PR #43](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/43) |
 | [#38](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/issues/38) | Audit TargetID / actor / prune | [PR #44](https://github.com/lucas-albers-lz4/mattermost-plugin-community-admin/pull/44) |
@@ -189,6 +189,13 @@ Opus also **disproved**: js-yaml #62 is a real lockfile fix; Dependabot `ignore`
 Sol I1 (config last-known-good) and I4 (reset TOCTOU) were filed High; parent **downgraded** to accepted residuals (#39 intent; concurrent-admin race). I5 matches #36 deferred rollback. Ledger C1 (Z3 not in CI) **renamed P1** so Opus C1 (no required checks) can keep its ID.
 
 This file is the first in-repo ledger (previously implicit in `SECURITY.md` + closed issues). Wired into `.cursor/rules/security-audit.mdc`, `AGENTS.md`, and `CONTRIBUTING.md`. js-yaml CVE closed by PR #62.
+
+### 2026-08-13 — V1 username argv hardening
+
+`ValidateUsername` now requires a lowercase letter first, and the password
+reset mmctl invocation uses `--` before the username. Table-driven Go tests
+and the Z3 proof cover leading `--password`, `-h`, `--`, and digit-leading
+usernames.
 
 ### 2026-08-12 — R4 npm override remediation
 

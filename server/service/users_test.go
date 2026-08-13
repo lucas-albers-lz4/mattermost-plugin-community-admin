@@ -178,6 +178,30 @@ func TestResetPasswordRejectsInvalidUsername(t *testing.T) {
 	assert.False(t, called)
 }
 
+func TestChangePasswordArgsSeparateUsernameFromFlags(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+	}{
+		{name: "leading password flag", username: "--password"},
+		{name: "leading help flag", username: "-h"},
+		{name: "only flags", username: "--"},
+		{name: "normal username", username: "child.one"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := changePasswordArgs(tt.username, "$2b$hash")
+			require.Equal(t, []string{
+				"--local", "user", "change-password",
+				"--password", "$2b$hash", "--hashed", "--", tt.username,
+			}, args)
+			require.Equal(t, tt.username, args[len(args)-1])
+			require.Equal(t, "--", args[len(args)-2])
+		})
+	}
+}
+
 func TestResetPasswordSuccess(t *testing.T) {
 	var gotUser, gotHash string
 	svc := newUserServiceForTest(&stubUsersAPI{}, &stubTeamsAPI{}, &stubChannelsAPI{}, noopLog{})

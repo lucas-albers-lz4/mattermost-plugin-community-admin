@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	usernamePattern = `^[a-z0-9._-]+$`
+	usernamePattern = `^[a-z][a-z0-9._-]*$`
 	upperChars      = "ABCDEFGHJKLMNPQRSTUVWXYZ"
 	lowerChars      = "abcdefghjkmnpqrstuvwxyz"
 	digitChars      = "23456789"
