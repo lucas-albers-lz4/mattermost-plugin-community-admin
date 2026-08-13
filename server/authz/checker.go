@@ -46,6 +46,15 @@ func IsSystemAdmin(roles string) bool {
 	return slices.Contains(strings.Fields(roles), "system_admin")
 }
 
+func hasElevatedSystemRole(roles string) bool {
+	for _, role := range strings.Fields(roles) {
+		if strings.HasPrefix(role, "system_") && role != "system_user" && role != "system_guest" {
+			return true
+		}
+	}
+	return false
+}
+
 func isProtected(cfg *config.ScopeConfig, actorID string, target *UserInfo) bool {
 	if target == nil {
 		return false
@@ -57,6 +66,9 @@ func isProtected(cfg *config.ScopeConfig, actorID string, target *UserInfo) bool
 		return true
 	}
 	if IsSystemAdmin(target.Roles) {
+		return true
+	}
+	if hasElevatedSystemRole(target.Roles) {
 		return true
 	}
 	if target.Username == "calls" {
