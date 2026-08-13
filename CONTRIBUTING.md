@@ -45,3 +45,5 @@ Warnings should disappear when Mattermost bumps those Action pins to runtimes th
 ## Security
 
 Do not open public issues for undisclosed vulnerabilities. See [SECURITY.md](SECURITY.md).
+
+The audit ledger is [docs/security-review.md](docs/security-review.md). PRs that change authorization, the mmctl password bridge, audit/rate-limit KV, ScopeConfig, or GitHub workflows must update that file in the same PR (coverage-map date, control row, open/resolved findings). Do not re-file items listed as accepted residuals.
